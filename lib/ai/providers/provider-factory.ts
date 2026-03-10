@@ -3,7 +3,17 @@ import { GroqProvider } from "@/lib/ai/providers/groq-provider";
 import { MockLlmProvider } from "@/lib/ai/providers/mock-provider";
 import { OpenAiProvider } from "@/lib/ai/providers/openai-provider";
 import { OpenRouterProvider } from "@/lib/ai/providers/openrouter-provider";
-import { type LlmProvider } from "@/lib/ai/types";
+import { type LlmProvider, type LlmProviderName } from "@/lib/ai/types";
+
+const providerNames: LlmProviderName[] = ["gemini", "openai", "groq", "openrouter", "mock"];
+
+export function parseProviderName(value?: string | null): LlmProviderName | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return undefined;
+  return providerNames.includes(normalized as LlmProviderName)
+    ? (normalized as LlmProviderName)
+    : undefined;
+}
 
 function createProvider(name: string): LlmProvider {
   switch (name) {
@@ -22,22 +32,31 @@ function createProvider(name: string): LlmProvider {
 }
 
 export function getPrimaryProvider(): LlmProvider {
-  const provider = process.env.SYSNOVA_LLM_PROVIDER ?? "mock";
+  const provider = parseProviderName(process.env.SYSNOVA_LLM_PROVIDER) ?? "mock";
   return createProvider(provider);
 }
 
-export function getProviderChain(): LlmProvider[] {
-  const primary = getPrimaryProvider();
-  if (primary.name === "mock") {
-    return [primary];
+export function getProviderChain(preferredProvider?: LlmProviderName): LlmProvider[] {
+  const envPrimary = parseProviderName(process.env.SYSNOVA_LLM_PROVIDER) ?? "mock";
+  const envSecondary = parseProviderName(process.env.SYSNOVA_LLM_SECONDARY_PROVIDER);
+
+  const orderedNames: LlmProviderName[] = [];
+  const pushProvider = (name?: LlmProviderName) => {
+    if (!name || orderedNames.includes(name)) return;
+    orderedNames.push(name);
+  };
+
+  pushProvider(preferredProvider);
+  pushProvider(envPrimary);
+  if (envSecondary && envSecondary !== "mock") {
+    pushProvider(envSecondary);
   }
 
-  const secondaryName = process.env.SYSNOVA_LLM_SECONDARY_PROVIDER?.trim().toLowerCase();
-  const chain: LlmProvider[] = [primary];
-  if (secondaryName && secondaryName !== primary.name && secondaryName !== "mock") {
-    chain.push(createProvider(secondaryName));
+  if (!orderedNames.length || orderedNames[0] === "mock") {
+    return [new MockLlmProvider()];
   }
 
+  const chain: LlmProvider[] = orderedNames.map((name) => createProvider(name));
   chain.push(new MockLlmProvider());
   return chain;
 }

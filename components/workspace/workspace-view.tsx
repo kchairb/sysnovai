@@ -48,6 +48,7 @@ type PersistedMessage = {
 };
 
 type WorkspaceMode = "general" | "support" | "sales" | "marketing" | "tunisian-assistant";
+type ProviderOption = "auto" | "gemini" | "openai" | "groq" | "openrouter" | "mock";
 type ProviderBadge = {
   badge: "healthy" | "degraded" | "fallback";
   summary?: {
@@ -76,6 +77,7 @@ export function WorkspaceView() {
   const [conversationSearch, setConversationSearch] = useState("");
   const [selectedMode, setSelectedMode] = useState<WorkspaceMode>("support");
   const [selectedLanguage, setSelectedLanguage] = useState("fr");
+  const [selectedProvider, setSelectedProvider] = useState<ProviderOption>("auto");
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
@@ -209,7 +211,8 @@ export function WorkspaceView() {
         conversationId,
         prompt: inputPrompt,
         mode: selectedMode,
-        language: selectedLanguage
+        language: selectedLanguage,
+        provider: selectedProvider
       })
     });
     const payload = (await response.json()) as {
@@ -248,7 +251,8 @@ export function WorkspaceView() {
         conversationId,
         prompt: inputPrompt,
         mode: selectedMode,
-        language: selectedLanguage
+        language: selectedLanguage,
+        provider: selectedProvider
       })
     });
 
@@ -662,6 +666,24 @@ export function WorkspaceView() {
               {selectedConversation?.title ?? tr("workspace.newConversation", "New conversation")}
             </p>
             <div className="flex items-center gap-2">
+              <select
+                className={cn(
+                  "h-8 rounded-md border px-2 text-xs",
+                  lightInterface
+                    ? "border-[#CBD7EE] bg-white text-slate-700"
+                    : "border-border/70 bg-elevated/30 text-secondary"
+                )}
+                value={selectedProvider}
+                onChange={(event) => setSelectedProvider(event.target.value as ProviderOption)}
+                title={tr("workspace.provider", "Provider")}
+              >
+                <option value="auto">{tr("workspace.providerAuto", "Provider: Auto")}</option>
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+                <option value="groq">Groq</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="mock">Mock</option>
+              </select>
               <p className={cn("text-xs", lightInterface ? "text-slate-500" : "text-muted")}>{liveStatus}</p>
               {providerBadge && (
                 <span

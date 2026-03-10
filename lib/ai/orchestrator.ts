@@ -73,7 +73,7 @@ export async function runRagPipeline(input: RagRequest): Promise<RagResult> {
   });
 
   // Provider chain supports resilience: primary provider -> mock fallback.
-  const configuredProviders = getProviderChain();
+  const configuredProviders = getProviderChain(input.preferredProvider);
   const providers = configuredProviders.filter((provider) => {
     if (provider.name === "mock") return true;
     const coolingDown = isProviderCoolingDown(provider.name);

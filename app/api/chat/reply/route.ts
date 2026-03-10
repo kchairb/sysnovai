@@ -3,7 +3,8 @@ import { runRagPipeline } from "@/lib/ai/orchestrator";
 import { authEnabled, getAuthenticatedUserFromRequest } from "@/lib/server/auth";
 import { appendMessage } from "@/lib/server/chat-store";
 import { applyRateLimit } from "@/lib/server/rate-limit";
-import { type SysnovaLanguage, type SysnovaMode } from "@/lib/ai/types";
+import { type LlmProviderName, type SysnovaLanguage, type SysnovaMode } from "@/lib/ai/types";
+import { parseProviderName } from "@/lib/ai/providers/provider-factory";
 
 type Body = {
   prompt?: string;
@@ -11,6 +12,7 @@ type Body = {
   mode?: SysnovaMode;
   workspaceId?: string;
   conversationId?: string;
+  provider?: LlmProviderName | "auto";
 };
 
 export async function POST(request: Request) {
@@ -34,6 +36,8 @@ export async function POST(request: Request) {
     const prompt = body.prompt ?? "No prompt provided";
     const workspaceId = body.workspaceId ?? "workspace-default";
     const conversationId = body.conversationId;
+    const preferredProvider =
+      body.provider && body.provider !== "auto" ? parseProviderName(body.provider) : undefined;
 
     if (conversationId) {
       await appendMessage(
@@ -50,7 +54,8 @@ export async function POST(request: Request) {
       workspaceId,
       message: prompt,
       language,
-      mode
+      mode,
+      preferredProvider
     });
 
     if (conversationId) {

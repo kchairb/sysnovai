@@ -7,11 +7,14 @@ export type SysnovaMode =
   | "marketing"
   | "tunisian-assistant";
 
+export type LlmProviderName = "gemini" | "openai" | "groq" | "openrouter" | "mock";
+
 export interface RagRequest {
   workspaceId: string;
   message: string;
   language: SysnovaLanguage;
   mode: SysnovaMode;
+  preferredProvider?: LlmProviderName;
 }
 
 export interface RetrievedContext {
