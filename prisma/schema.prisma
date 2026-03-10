@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String              @id @default(cuid())
+  email        String              @unique
+  name         String?
+  passwordHash String?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  memberships  WorkspaceMember[]
+  sessions     UserSession[]
+  auditLogs    AdminAuditLog[]
+  sentInvites  InviteToken[]         @relation("InviteSender")
+  acceptedInvites InviteToken[]      @relation("InviteAcceptedUser")
+}
+
+model Workspace {
+  id           String              @id @default(cuid())
+  externalId   String              @unique
+  name         String
+  slug         String              @unique
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  members      WorkspaceMember[]
+  chats        WorkspaceChat[]
+  settings     WorkspaceSettings?
+  invites      InviteToken[]
+}
+
+model WorkspaceMember {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  userId       String
+  role         String    @default("owner")
+  createdAt    DateTime  @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model WorkspaceChat {
+  id           String             @id @default(cuid())
+  workspaceId  String
+  title        String
+  mode         String
+  language     String
+  tone         String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages     WorkspaceMessage[]
+
+  @@index([workspaceId, updatedAt(sort: Desc)])
+}
+
+model WorkspaceMessage {
+  id        String        @id @default(cuid())
+  chatId    String
+  role      String
+  content   String
+  createdAt DateTime      @default(now())
+  chat      WorkspaceChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt(sort: Asc)])
+}
+
+model WorkspaceSettings {
+  id               String    @id @default(cuid())
+  workspaceId      String    @unique
+  profileAccount   Json
+  workspaceProfile Json
+  aiDefaults       Json
+  security         Json
+  billing          Json
+  activeSessions   Json
+  updatedAt        DateTime  @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model AdminAuditLog {
+  id                  String   @id @default(cuid())
+  actorUserId         String?
+  actorEmail          String
+  action              String
+  targetUserEmail     String?
+  workspaceExternalId String?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  actor               User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorEmail, createdAt(sort: Desc)])
+}
+
+model InviteToken {
+  id             String    @id @default(cuid())
+  tokenHash      String    @unique
+  email          String
+  workspaceId    String
+  role           String    @default("viewer")
+  status         String    @default("pending")
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  invitedByUserId String?
+  acceptedUserId String?
+  createdAt      DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy      User?     @relation("InviteSender", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  acceptedUser   User?     @relation("InviteAcceptedUser", fields: [acceptedUserId], references: [id], onDelete: SetNull)
+
+  @@index([email, status, expiresAt])
+  @@index([workspaceId, status])
+}
+
+model TunisianEvaluationRun {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  averageScore Int
+  sampleCount  Int
+  provider     String?
+  model        String?
+  results      Json
+  createdAt    DateTime @default(now())
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+}
+
+model ProviderHealthEvent {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  provider     String
+  status       String
+  latencyMs    Int?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([provider, createdAt(sort: Desc)])
+}
+
+model RateLimitEvent {
+  id           String   @id @default(cuid())
+  bucket       String
+  method       String
+  clientKey    String
+  retryAfterMs Int
+  createdAt    DateTime @default(now())
+
+  @@index([bucket, createdAt(sort: Desc)])
+  @@index([clientKey, createdAt(sort: Desc)])
+}

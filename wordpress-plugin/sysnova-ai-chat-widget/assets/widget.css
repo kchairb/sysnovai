@@ -1,0 +1,242 @@
+.sysnova-widget-root {
+  --sysnova-bg: #0b1220;
+  --sysnova-panel: #121a2b;
+  --sysnova-border: #26324a;
+  --sysnova-text: #f5f7fb;
+  --sysnova-muted: #9aa6bd;
+  --sysnova-accent: #22c7d6;
+  --sysnova-accent-hover: #1db2c0;
+  --sysnova-shadow: 0 16px 48px rgba(5, 10, 20, 0.45);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  position: fixed;
+  bottom: 20px;
+  z-index: 999999;
+  color: var(--sysnova-text);
+}
+
+.sysnova-widget-root.sysnova-pos-right {
+  right: 20px;
+}
+
+.sysnova-widget-root.sysnova-pos-left {
+  left: 20px;
+}
+
+.sysnova-widget-toggle {
+  height: 52px;
+  min-width: 52px;
+  border: 1px solid var(--sysnova-border);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #1d2a41, #141d30);
+  color: var(--sysnova-text);
+  box-shadow: var(--sysnova-shadow);
+  cursor: pointer;
+  padding: 0 16px;
+  font-weight: 600;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.sysnova-widget-toggle:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.sysnova-widget-panel {
+  width: min(360px, calc(100vw - 24px));
+  height: min(560px, calc(100vh - 92px));
+  margin-bottom: 10px;
+  border: 1px solid var(--sysnova-border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(18, 26, 43, 0.95), rgba(10, 17, 31, 0.98));
+  backdrop-filter: blur(10px);
+  box-shadow: var(--sysnova-shadow);
+  display: none;
+  overflow: hidden;
+}
+
+.sysnova-widget-root.sysnova-open .sysnova-widget-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.sysnova-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--sysnova-border);
+  padding: 12px 14px;
+}
+
+.sysnova-widget-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sysnova-widget-close {
+  border: 1px solid var(--sysnova-border);
+  border-radius: 10px;
+  background: #152137;
+  color: var(--sysnova-text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.sysnova-widget-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sysnova-widget-bubble {
+  max-width: 88%;
+  border: 1px solid var(--sysnova-border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.sysnova-widget-user {
+  margin-left: auto;
+  background: rgba(34, 199, 214, 0.12);
+  border-color: rgba(34, 199, 214, 0.32);
+}
+
+.sysnova-widget-assistant {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sysnova-widget-meta {
+  color: var(--sysnova-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.sysnova-widget-input-wrap {
+  border-top: 1px solid var(--sysnova-border);
+  padding: 10px;
+}
+
+.sysnova-widget-input {
+  width: 100%;
+  resize: none;
+  min-height: 78px;
+  max-height: 150px;
+  border: 1px solid var(--sysnova-border);
+  border-radius: 12px;
+  background: #0c1425;
+  color: var(--sysnova-text);
+  padding: 10px 11px;
+  outline: none;
+  font-size: 13px;
+}
+
+.sysnova-widget-input::placeholder {
+  color: var(--sysnova-muted);
+}
+
+.sysnova-widget-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sysnova-widget-send {
+  border: none;
+  border-radius: 10px;
+  background: var(--sysnova-accent);
+  color: #031019;
+  cursor: pointer;
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.sysnova-widget-send:hover {
+  background: var(--sysnova-accent-hover);
+  transform: translateY(-1px);
+}
+
+.sysnova-widget-send:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.sysnova-widget-typing {
+  position: relative;
+  color: transparent;
+}
+
+.sysnova-widget-typing::after {
+  content: "...";
+  color: var(--sysnova-muted);
+  letter-spacing: 2px;
+  animation: sysnovaTyping 0.9s infinite;
+}
+
+.sysnova-widget-lead {
+  border: 1px solid var(--sysnova-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.sysnova-widget-lead-title {
+  font-size: 12px;
+  color: var(--sysnova-muted);
+  margin-bottom: 8px;
+}
+
+.sysnova-widget-lead-input {
+  width: 100%;
+  border: 1px solid var(--sysnova-border);
+  border-radius: 10px;
+  background: #0c1425;
+  color: var(--sysnova-text);
+  padding: 8px 9px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.sysnova-widget-lead-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sysnova-widget-lead-btn {
+  border: none;
+  border-radius: 8px;
+  background: var(--sysnova-accent);
+  color: #031019;
+  cursor: pointer;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sysnova-widget-lead-skip {
+  background: #25324a;
+  color: var(--sysnova-text);
+}
+
+@keyframes sysnovaTyping {
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}

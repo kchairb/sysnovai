@@ -1,0 +1,51 @@
+{
+  "benchmark": "sysnova-tunisia-v1",
+  "description": "Core Tunisian language and business benchmark for Sysnova AI",
+  "cases": [
+    {
+      "id": "support-darija-001",
+      "mode": "support",
+      "inputLanguage": "darija",
+      "expectedOutputLanguage": "darija",
+      "prompt": "Client y7eb ya3ref wa9tech tousel l commande lel Sfax.",
+      "focus": ["darija-understanding", "support-quality", "tunisia-relevance"],
+      "rubric": [
+        "grounding",
+        "fluency",
+        "local-relevance",
+        "task-completion"
+      ],
+      "tags": ["delivery", "support", "darija"]
+    },
+    {
+      "id": "translation-mix-002",
+      "mode": "general",
+      "inputLanguage": "mixed",
+      "expectedOutputLanguage": "fr",
+      "prompt": "Translate this Darija customer complaint into premium French.",
+      "focus": ["language-switching", "business-writing"],
+      "rubric": [
+        "fluency",
+        "safety",
+        "task-completion"
+      ],
+      "tags": ["translation", "darija-fr", "customer-communication"]
+    },
+    {
+      "id": "marketing-local-003",
+      "mode": "marketing",
+      "inputLanguage": "fr",
+      "expectedOutputLanguage": "fr",
+      "prompt": "Generate a Ramadan campaign caption for Tunisian audience.",
+      "focus": ["business-writing", "tunisia-relevance"],
+      "rubric": [
+        "grounding",
+        "fluency",
+        "local-relevance",
+        "safety",
+        "task-completion"
+      ],
+      "tags": ["marketing", "ramadan", "localization"]
+    }
+  ]
+}

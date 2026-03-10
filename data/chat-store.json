@@ -1,0 +1,252 @@
+{
+  "chats": [
+    {
+      "id": "94cddd43-b45b-4d06-a038-0bd439b74478",
+      "workspaceId": "workspace-default",
+      "title": "kifh tnajem taawni fi brand mtai digitalre",
+      "mode": "general",
+      "language": "fr",
+      "tone": "Warm, premium, trustworthy",
+      "createdAt": "2026-03-10T00:20:45.530Z",
+      "updatedAt": "2026-03-10T03:46:16.768Z"
+    },
+    {
+      "id": "6e3c0fb7-7552-41c3-9e5d-8c14edfa4754",
+      "workspaceId": "workspace-default",
+      "title": "tnjm taawni",
+      "mode": "support",
+      "language": "fr",
+      "tone": "Warm, premium, trustworthy",
+      "createdAt": "2026-03-10T00:18:57.734Z",
+      "updatedAt": "2026-03-10T00:19:09.861Z"
+    },
+    {
+      "id": "87aef8ff-e5c2-4381-9527-93e8d407f806",
+      "workspaceId": "workspace-default",
+      "title": "Test message from smoke check",
+      "mode": "support",
+      "language": "fr",
+      "tone": "Warm",
+      "createdAt": "2026-03-10T00:04:49.356Z",
+      "updatedAt": "2026-03-10T00:18:07.616Z"
+    }
+  ],
+  "messagesByChatId": {
+    "87aef8ff-e5c2-4381-9527-93e8d407f806": [
+      {
+        "id": "26d555f0-545c-4c2f-abf4-46016a2b06fd",
+        "role": "assistant",
+        "content": "New chat ready. Write your first prompt.",
+        "createdAt": "2026-03-10T00:04:49.356Z"
+      },
+      {
+        "id": "8c5b9719-5036-4526-8ee7-b2be3f9c06d8",
+        "role": "user",
+        "content": "Test message from smoke check",
+        "createdAt": "2026-03-10T00:04:50.161Z"
+      },
+      {
+        "id": "ed3553b5-589f-4605-a4b9-0fcfdf34e5e2",
+        "role": "assistant",
+        "content": "Bonjour !\n\nNous avons bien reçu votre message de test.\n\nN'hésitez pas si vous avez des questions ou si nous pouvons vous être utiles pour quoi que ce soit.\n\nCordialement,\nL'équipe Sysnova",
+        "createdAt": "2026-03-10T00:04:53.234Z"
+      },
+      {
+        "id": "20fad64d-a11c-409f-80c0-cb3789a7b160",
+        "role": "user",
+        "content": "Streaming smoke test",
+        "createdAt": "2026-03-10T00:13:25.174Z"
+      },
+      {
+        "id": "57301d27-59ce-4de1-a3e8-e13c3099e988",
+        "role": "assistant",
+        "content": "Bonjour,\n\nMessage bien reçu. Je suis opérationnel et prêt à répondre à vos requêtes.\n\nN'hésitez pas si vous avez besoin d'assistance.",
+        "createdAt": "2026-03-10T00:13:27.805Z"
+      },
+      {
+        "id": "1502a79a-b979-4e74-a6a5-ee2e1fe6108e",
+        "role": "user",
+        "content": "Generate a Facebook ad in Darija",
+        "createdAt": "2026-03-10T00:17:51.192Z"
+      },
+      {
+        "id": "06b9ddf5-a46f-42a6-8da7-f70db3b7949d",
+        "role": "assistant",
+        "content": "Support reply: Generate a Facebook ad in Darija (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T00:18:07.616Z"
+      }
+    ],
+    "6e3c0fb7-7552-41c3-9e5d-8c14edfa4754": [
+      {
+        "id": "a9f8fc2e-8004-45f9-9414-760b35e6d1a0",
+        "role": "assistant",
+        "content": "New chat ready. Write your first prompt.",
+        "createdAt": "2026-03-10T00:18:57.734Z"
+      },
+      {
+        "id": "fe4db408-48ea-4a67-8b95-a3d4cb35d174",
+        "role": "user",
+        "content": "tnjm taawni",
+        "createdAt": "2026-03-10T00:19:07.857Z"
+      },
+      {
+        "id": "186cea82-1413-417e-8cb3-d99681546f55",
+        "role": "assistant",
+        "content": "Bien sûr ! Je suis là pour vous aider.\n\nComment puis-je vous assister aujourd'hui ? N'hésitez pas à me dire ce dont vous avez besoin.",
+        "createdAt": "2026-03-10T00:19:09.861Z"
+      }
+    ],
+    "94cddd43-b45b-4d06-a038-0bd439b74478": [
+      {
+        "id": "08c02c98-35bb-4b72-a387-8acc7d0645be",
+        "role": "assistant",
+        "content": "New chat ready. Write your first prompt.",
+        "createdAt": "2026-03-10T00:20:45.530Z"
+      },
+      {
+        "id": "139492a3-5192-4a05-aafd-d1c527403eec",
+        "role": "user",
+        "content": "kifh tnajem taawni fi brand mtai digitalrecharge.tn",
+        "createdAt": "2026-03-10T01:31:24.212Z"
+      },
+      {
+        "id": "ef7a25fd-7b81-4678-907a-90d72d729c7e",
+        "role": "assistant",
+        "content": "مرحبا! نجم نعاونك في برشا حاجات بخصوص brand متاعك digitalrecharge.tn، خاصةً بالاعتماد على المعلومات المتوفرة عندي:\n\n*   **معلومات حول سياساتكم وخدماتكم:** نجم نجاوبك على أسئلة تخص وقت التسليم (24h-48h في كامل تراب الجمهورية)، سياسة الدفع عند الاستلام، وإرجاع المنتجات (في 7 أيام للمنتجات غير المفتوحة).\n*   **الإجابة على استفسارات الحرفاء:** نجم نعاونك تفهم أسئلة الحرفاء الشائعة، مثلاً على التوصيل خارج تونس الكبرى أو شروط الإرجاع والتبديل.\n*   **دعم العملاء:** نجم نعطيك فكرة على الـ'tone' المناسب للتواصل مع الحرفاء حسب الـ'Operations Handbook' المتوفر.\n\nشنو الحاجة اللي تحب تعرف عليها بالضبط ولا تحب نساعدك فيها؟",
+        "createdAt": "2026-03-10T01:31:33.887Z"
+      },
+      {
+        "id": "38f5699e-670a-4909-b082-70f3a68b0949",
+        "role": "user",
+        "content": "enti aatini hajet baad mtchouf site mtaai digitalrecharge.tn",
+        "createdAt": "2026-03-10T01:32:01.661Z"
+      },
+      {
+        "id": "a45ed711-f70d-4473-a516-e17f7b195d06",
+        "role": "assistant",
+        "content": "مرحبا بك! بما أنك طلبت مني نعطيك بعض الاقتراحات بعد ما شفت موقعك digitalrecharge.tn، إليك بعض النقاط اللي تنجم تعاونك باش تحسن من تجربة الزبائن وتزيد من فعالية الموقع:\n\n*   **وضوح الخدمات والأسعار:** تأكد اللي كل الخدمات والمنتجات متاعك معروضة بوضوح كبير، مع الأسعار وطرق الدفع المتاحة (خاصة طرق الدفع الرقمية بما أنو اسم الموقع \"digital recharge\"). هذا يخلي الزبون يفهم بالضبط شنوة قاعد يشري.\n*   **تجربة المستخدم (UX):** الموقع لازم يكون ساهل في الاستعمال والتنقل، ويخدم مليح على التليفون والبيسي (Responsive Design)، باش الزبون ما يلقاش صعوبة وهو يتصفح ويقوم بعملية الشراء.\n*   **توضيح سياسات الشركة:** بما أنو عندك FAQs و Policies، تأكد اللي المعلومات هذي (كيما أوقات التوصيل، سياسة الإرجاع، والدفع عند الاستلام) موجودة وواضحة برشا في الموقع. هذا يزيد من ثقة الزبائن ويجاوب على تساؤلاتهم الشائعة قبل ما يتصلوا بيك.\n*   **التسويق الرقمي:** فكر في حملات تسويقية على السوشل ميديا أو إعلانات موجهة باش توصل لأكبر عدد ممكن من الزبائن المحتملين، وتعرفهم بالخدمات الرقمية اللي تقدمها.",
+        "createdAt": "2026-03-10T01:32:13.521Z"
+      },
+      {
+        "id": "5e4b21f9-bb3a-48cd-8e08-41eae3d68817",
+        "role": "user",
+        "content": "chniya ahsan blasa fi tounes",
+        "createdAt": "2026-03-10T01:51:50.108Z"
+      },
+      {
+        "id": "5a13a5c2-c95a-428f-bcdd-53960a7dad3f",
+        "role": "assistant",
+        "content": "Ah, \"ahsan blasa fi Tounes\" ! C'est une excellente question, mais la \"meilleure\" place dépend vraiment de ce que vous recherchez. La Tunisie est tellement diverse !\n\nVoici quelques suggestions, selon vos préférences :\n\n1.  **Pour l'histoire et la culture :**\n    *   **Carthage et Sidi Bou Saïd :** Incontournables pour leur richesse historique et leur charme méditerranéen.\n    *   **La Médina de Tunis :** Un voyage dans le temps avec ses souks et son architecture authentique.\n    *   **Kairouan :** Capitale spirituelle, avec sa Grande Mosquée et ses bassins aghlabides.\n    *   **El Jem :** Pour son impressionnant amphithéâtre romain, le deuxième plus grand au monde.\n    *   **Dougga :** Un site archéologique romain exceptionnellement bien conservé.\n\n2.  **Pour les plages et la détente :**\n    *   **Djerba :** L'île aux mille charmes, avec ses plages de sable fin et son ambiance unique.\n    *   **Hammamet et Sousse :** Des stations balnéaires très populaires, idéales pour les vacances.\n    *   **Mahdia :** Une ville côtière tranquille avec de superbes plages et un port pittoresque.\n    *   **Cap Bon (Kélibia, Haouaria) :** Pour des plages plus sauvages et des paysages magnifiques.\n\n3.  **Pour la nature et l'aventure :**\n    *   **Le Sud Tunisien (Tozeur, Douz, Tataouine) :** Pour une immersion dans le désert, les oasis et les ksour.\n    *   **Ain Draham et Tabarka :** Dans le Nord-Ouest, pour les forêts, les montagnes et un climat plus frais.\n\n4.  **Pour une ambiance citadine et moderne :**\n    *   **Tunis (et ses banlieues chics comme La Marsa, Gammarth) :** Pour le shopping, les restaurants, la vie nocturne et les galeries d'art.\n\nDites-moi ce que vous aimez faire ou quel type d'ambiance vous recherchez, et je pourrai vous donner une recommandation plus précise !",
+        "createdAt": "2026-03-10T01:52:02.267Z"
+      },
+      {
+        "id": "96127adf-0614-491a-893c-d6576ab79693",
+        "role": "user",
+        "content": "Translate this response to ar: Ah, \"ahsan blasa fi Tounes\" ! C'est une excellente question, mais la \"meilleure\" place dépend vraiment de ce que vous recherchez. La Tunisie est tellement diverse !\n\nVoici quelques suggestions, selon vos préférences :\n\n1.  **Pour l'histoire et la culture :**\n    *   **Carthage et Sidi Bou Saïd :** Incontournables pour leur richesse historique et leur charme méditerranéen.\n    *   **La Médina de Tunis :** Un voyage dans le temps avec ses souks et son architecture authentique.\n    *   **Kairouan :** Capitale spirituelle, avec sa Grande Mosquée et ses bassins aghlabides.\n    *   **El Jem :** Pour son impressionnant amphithéâtre romain, le deuxième plus grand au monde.\n    *   **Dougga :** Un site archéologique romain exceptionnellement bien conservé.\n\n2.  **Pour les plages et la détente :**\n    *   **Djerba :** L'île aux mille charmes, avec ses plages de sable fin et son ambiance unique.\n    *   **Hammamet et Sousse :** Des stations balnéaires très populaires, idéales pour les vacances.\n    *   **Mahdia :** Une ville côtière tranquille avec de superbes plages et un port pittoresque.\n    *   **Cap Bon (Kélibia, Haouaria) :** Pour des plages plus sauvages et des paysages magnifiques.\n\n3.  **Pour la nature et l'aventure :**\n    *   **Le Sud Tunisien (Tozeur, Douz, Tataouine) :** Pour une immersion dans le désert, les oasis et les ksour.\n    *   **Ain Draham et Tabarka :** Dans le Nord-Ouest, pour les forêts, les montagnes et un climat plus frais.\n\n4.  **Pour une ambiance citadine et moderne :**\n    *   **Tunis (et ses banlieues chics comme La Marsa, Gammarth) :** Pour le shopping, les restaurants, la vie nocturne et les galeries d'art.\n\nDites-moi ce que vous aimez faire ou quel type d'ambiance vous recherchez, et je pourrai vous donner une recommandation plus précise !",
+        "createdAt": "2026-03-10T01:52:05.735Z"
+      },
+      {
+        "id": "9de82664-4ec7-423d-b942-814c53cc9217",
+        "role": "assistant",
+        "content": "Local assistant: Translate this response to ar: Ah, \"ahsan blasa fi Tounes\" ! C'est une excellente question, mais la \"meilleure\" place dépend vraiment de ce que vous recherchez. La Tunisie est tellement diverse ! (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T01:52:21.762Z"
+      },
+      {
+        "id": "0a8cc00b-258f-43c1-b63b-9fe3afe7ab20",
+        "role": "user",
+        "content": "chniya ahsan blasa fi tounes",
+        "createdAt": "2026-03-10T01:52:40.755Z"
+      },
+      {
+        "id": "2a1583a7-aa5d-44ab-8330-2f2221a71d1c",
+        "role": "assistant",
+        "content": "أهلاً بك! سؤالك \"شنوة أحسن بلاصة في تونس؟\" صعيب شوية نجاوب عليه بإجابة وحدة، خاطر تونس فيها برشا بلايص مزيانة وكل بلاصة عندها سحرها الخاص، و\"الأحسن\" يرجع للذوق الشخصي وشنوة تحب تعمل.\n\nأما نجم نعطيك فكرة على بعض الوجهات المشهورة والمحبوبة في تونس، حسب اهتماماتك:\n\n1.  **للتاريخ والثقافة:**\n    *   **قرطاج وسيدي بوسعيد:** قريبة من تونس العاصمة، فيها آثار تاريخية مهمة ومناظر خلابة على البحر، خاصة في سيدي بوسعيد ببيوتها البيضاء والزرقاء.\n    *   **مدينة تونس العتيقة (المدينة العربي):** سوق تقليدي كبير وتاريخ عريق، مكان مثالي لاكتشاف الحرف التقليدية والأجواء التونسية الأصيلة.\n    *   **القيروان:** أول عاصمة إسلامية في المغرب العربي، فيها جامع عقبة بن نافع وفسقيات الأغالبة، مكان روحي وتاريخي بامتياز.\n    *   **الجم:** فيها المسرح الروماني الكبير، تحفة معمارية تستحق الزيارة.\n\n2.  **للبحر والاسترخاء:**\n    *   **جربة:** جزيرة الأحلام، معروفة بشواطئها الرملية الذهبية ومياهها الصافية، وجوها الهادئ والمريح.\n    *   **الحمامات وسوسة والمنستير:** مدن ساحلية حيوية، فيها فنادق ومنتجعات سياحية ممتازة وشواطئ جميلة، ومناسبة للعائلات.\n    *   **المهدية:** مدينة هادئة بشواطئها الساحرة وطابعها التقليدي.\n\n3.  **للطبيعة والمغامرة:**\n    *   **طبرقة وعين دراهم:** في الشمال الغربي، غابات وجبال ومناظر طبيعية خلابة، ومناسبة لمحبي الهدوء والطبيعة.\n    *   **الصحراء (توزر، دوز، مطماطة):** تجربة فريدة لاكتشاف الكثبان الرملية، الواحات، والقرى البربرية، وركوب الجمال.\n\nباش نساعدك تختار \"أحسن بلاصة\" ليك، قلي شنوة تحب تعمل بالضبط؟ هل تحب:\n*   تاريخ وآثار؟\n*   بحر وشمس؟\n*   طبيعة ومغامرة؟\n*   تسوق وأجواء مدينة؟\n\nكي نعرف اهتماماتك، نجم نعطيك اقتراحات أدق!",
+        "createdAt": "2026-03-10T01:52:52.333Z"
+      },
+      {
+        "id": "3ffa0ae9-8b29-4e13-b01e-4ef3674bc419",
+        "role": "user",
+        "content": "ena nhb djerba",
+        "createdAt": "2026-03-10T02:50:31.456Z"
+      },
+      {
+        "id": "51d9167d-a727-40a5-a3d6-a120ef782af5",
+        "role": "assistant",
+        "content": "Djerba, jazira meziana barcha! Kifesh نجم نعاونek lyoum?",
+        "createdAt": "2026-03-10T02:50:37.702Z"
+      },
+      {
+        "id": "1e2d3d86-0072-4ffa-95fb-e45b475ebf70",
+        "role": "user",
+        "content": "aawni fi chniya ahsan hotel nmchilou ",
+        "createdAt": "2026-03-10T02:57:42.631Z"
+      },
+      {
+        "id": "72575892-8827-49a6-8acc-b8d9c556b64f",
+        "role": "assistant",
+        "content": "General reply: aawni fi chniya ahsan hotel nmchilou (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T02:57:44.315Z"
+      },
+      {
+        "id": "257c4028-547d-4e12-8aaa-efecbc9e54ac",
+        "role": "user",
+        "content": "aawni fi chniya ahsan hotel nmchilou\n\n",
+        "createdAt": "2026-03-10T02:57:56.442Z"
+      },
+      {
+        "id": "0c0d5876-7e92-49ca-8f88-c7553875e03e",
+        "role": "assistant",
+        "content": "General reply: aawni fi chniya ahsan hotel nmchilou (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T02:57:59.058Z"
+      },
+      {
+        "id": "369d57cd-3d6a-4fbf-9b4e-99616e5b6817",
+        "role": "user",
+        "content": "chbik w9ft",
+        "createdAt": "2026-03-10T02:58:13.439Z"
+      },
+      {
+        "id": "511906ee-18b1-4795-a0aa-b0c2e6f023a9",
+        "role": "assistant",
+        "content": "General reply: chbik w9ft (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T02:58:14.280Z"
+      },
+      {
+        "id": "7b61dbb5-6050-427e-be0a-638091f19098",
+        "role": "user",
+        "content": "chbik w9ft\n\n",
+        "createdAt": "2026-03-10T02:58:22.819Z"
+      },
+      {
+        "id": "750a957e-297e-474c-a12a-2b2991a831a0",
+        "role": "assistant",
+        "content": "General reply: chbik w9ft (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T02:58:23.799Z"
+      },
+      {
+        "id": "129aa742-69e7-40b6-92d5-6d767d480db6",
+        "role": "user",
+        "content": "chbik w9ft\n",
+        "createdAt": "2026-03-10T03:03:27.458Z"
+      },
+      {
+        "id": "055bae24-c220-40f9-bb9b-37cd6ca0ff2f",
+        "role": "assistant",
+        "content": "General reply: chbik w9ft (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T03:03:30.440Z"
+      },
+      {
+        "id": "b31486b6-3fc8-43a8-b742-01d03f3ad226",
+        "role": "user",
+        "content": "chbik w9ft\n\n",
+        "createdAt": "2026-03-10T03:46:14.518Z"
+      },
+      {
+        "id": "98903ea9-e578-4f6e-9c71-6466cc120f00",
+        "role": "assistant",
+        "content": "General reply: chbik w9ft (generated with RAG context and multilingual rules).",
+        "createdAt": "2026-03-10T03:46:16.768Z"
+      }
+    ]
+  }
+}

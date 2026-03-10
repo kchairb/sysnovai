@@ -1,0 +1,33 @@
+{
+  "profileAccount": {
+    "displayName": "Sarra Ayari",
+    "role": "Founder / Admin",
+    "phone": "+216 22 000 000",
+    "avatarUrl": "https://images.example.com/avatar.jpg"
+  },
+  "workspaceProfile": {
+    "workspaceName": "Sysnova Commerce",
+    "industry": "Retail / Food",
+    "description": "Premium Tunisian products with fast delivery and multilingual customer support."
+  },
+  "aiDefaults": {
+    "defaultLanguage": "French",
+    "secondaryLanguages": "Darija, Arabic, English",
+    "toneDefaults": "Warm, premium, concise, trustworthy."
+  },
+  "security": {
+    "loginEmail": "owner@sysnova.ai",
+    "mfaStatus": "Enabled on authenticator app"
+  },
+  "billing": {
+    "plan": "Growth Plan",
+    "usage": "89,442 requests / month",
+    "invoiceCycle": "Next invoice: 2026-04-01"
+  },
+  "activeSessions": [
+    "Chrome (Tunis)",
+    "Safari (iPhone)",
+    "Edge (Office)"
+  ],
+  "updatedAt": "2026-03-10T02:32:19.148Z"
+}
