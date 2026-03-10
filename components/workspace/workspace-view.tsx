@@ -381,8 +381,12 @@ export function WorkspaceView() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const ensureConversationForGeneration = async () => {
-    if (selectedConversationId && conversationList.some((chat) => chat.id === selectedConversationId)) {
+  const ensureConversationForGeneration = async (forceNew = false) => {
+    if (
+      !forceNew &&
+      selectedConversationId &&
+      conversationList.some((chat) => chat.id === selectedConversationId)
+    ) {
       return selectedConversationId;
     }
     const response = await fetch("/api/workspace/chats", {
@@ -445,7 +449,7 @@ export function WorkspaceView() {
   const onNewChat = () => {
     void (async () => {
       try {
-        const conversationId = await ensureConversationForGeneration();
+        const conversationId = await ensureConversationForGeneration(true);
         await loadMessages(conversationId);
       } catch (error) {
         const message =
