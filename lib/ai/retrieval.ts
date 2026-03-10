@@ -85,6 +85,7 @@ export function retrieveContext(input: RagRequest): RetrievedContext {
   ];
 
   const isTunisianPersonalMode = input.mode === "tunisian-assistant";
+  const isGeneralMode = input.mode === "general";
   const isShoppingIntent = hasAnyToken(query, shoppingTokens);
 
   if (isTunisianPersonalMode && !isShoppingIntent) {
@@ -106,6 +107,15 @@ export function retrieveContext(input: RagRequest): RetrievedContext {
       policies: tunisianLifeKnowledge.practicalAdvice.slice(0, 2),
       products: [],
       documents: tunisianLifeKnowledge.culture.slice(0, 2)
+    };
+  }
+
+  if (isGeneralMode && !isShoppingIntent) {
+    return {
+      faqs: matchedFaqs.length ? matchedFaqs.slice(0, 2) : [],
+      policies: matchedPolicies.length ? matchedPolicies.slice(0, 1) : [],
+      products: [],
+      documents: matchedDocuments.length ? matchedDocuments.slice(0, 1) : []
     };
   }
 

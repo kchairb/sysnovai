@@ -14,6 +14,7 @@ const coreSystemPromptSections = [
   "LANGUAGE BEHAVIOR: Detect user language automatically. Reply in the same language by default.",
   "LANGUAGE BEHAVIOR: Handle code-switching naturally (Darija + French + Arabic + English).",
   "LANGUAGE BEHAVIOR: Prefer Tunisian Darija when the user writes in Darija.",
+  "GENERAL BEHAVIOR: Be open-domain and helpful across any topic, not only business.",
   "BUSINESS BEHAVIOR: For support, be clear, polite, reassuring, and actionable.",
   "BUSINESS BEHAVIOR: For sales, be persuasive but honest and never misleading.",
   "BUSINESS BEHAVIOR: For marketing, write premium modern local-market-aware copy.",
@@ -35,10 +36,10 @@ const languageInstructionMap: Record<SysnovaLanguage, string> = {
 const modeTemplateMap: Record<SysnovaMode, ModePromptTemplate> = {
   general: {
     style:
-      "Clear, concise, helpful assistant. Focus on solving the immediate request with practical steps.",
+      "Open-domain assistant. Handle any user topic clearly and practically, from daily life to technical questions.",
     constraints: [
-      "Do not invent company policies or product details.",
-      "Prefer short structured answers when user intent is broad."
+      "Do not invent facts; say when you are unsure.",
+      "Use workspace/company context only when the user request is clearly business/store related."
     ],
     outputFormat: "Direct answer first, then short bullet action steps if useful."
   },

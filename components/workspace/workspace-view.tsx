@@ -75,7 +75,7 @@ export function WorkspaceView() {
   const [conversationList, setConversationList] = useState<PersistedConversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState("");
   const [conversationSearch, setConversationSearch] = useState("");
-  const [selectedMode, setSelectedMode] = useState<WorkspaceMode>("support");
+  const [selectedMode, setSelectedMode] = useState<WorkspaceMode>("general");
   const [selectedLanguage, setSelectedLanguage] = useState("fr");
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption>("auto");
   const [prompt, setPrompt] = useState("");
@@ -153,7 +153,7 @@ export function WorkspaceView() {
         setSelectedConversationId(nextConversationId);
         if (chats[0]) {
           setSelectedLanguage(chats[0].language ?? "fr");
-          setSelectedMode((chats[0].mode as WorkspaceMode) ?? "support");
+          setSelectedMode((chats[0].mode as WorkspaceMode) ?? "general");
         }
       }
     } finally {
@@ -783,9 +783,9 @@ export function WorkspaceView() {
                 )}
               >
                 {[
-                  "Reply politely in Darija to delivery question",
-                  "Write premium French customer follow-up",
-                  "Translate this to Arabic formal style"
+                  "Explain this topic in simple terms with one practical example.",
+                  "Compare two options and give pros/cons in a short table.",
+                  "Help me write a clear professional message in French."
                 ].map((starter) => (
                   <button
                     key={starter}
@@ -930,7 +930,7 @@ export function WorkspaceView() {
               onKeyDown={onPromptKeyDown}
                   placeholder={tr(
                     "workspace.promptPlaceholder",
-                    "Write your prompt... e.g. Write a customer support reply in Darija and French."
+                    "Ask anything... e.g. explain an idea, draft a message, or solve a problem step by step."
                   )}
               className={cn(
                 "min-h-[116px] text-[15px] leading-7",

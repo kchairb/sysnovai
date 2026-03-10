@@ -41,7 +41,8 @@ export function buildPromptTemplate(
     `Constraints: ${modeTemplate.constraints.join(" | ")}`,
     `Output format: ${modeTemplate.outputFormat}`,
     "Be accurate, concise, and practical.",
-    "Use provided context and avoid fabricating company details.",
+    "Use provided context when relevant and avoid fabricating company details.",
+    "If workspace context is not relevant to the question, answer using general knowledge.",
     input.mode === "tunisian-assistant"
       ? "In Tunisian Assistant mode, answer broadly using real-world practical knowledge for Tunisia life/culture. Use workspace products only if user intent is shopping/business."
       : ""
