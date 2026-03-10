@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { getPrisma, hasDatabaseUrl } from "@/lib/server/db";
+import { ensurePersistentStorageConfigured } from "@/lib/server/storage-mode";
 
 type StoredMessage = {
   id: string;
@@ -113,6 +114,7 @@ export async function listWorkspaceChats(workspaceId: string) {
     );
   }
 
+  ensurePersistentStorageConfigured();
   const store = await readStore();
   return store.chats
     .filter((chat) => chat.workspaceId === workspaceId)
@@ -152,6 +154,7 @@ export async function createWorkspaceChat(input: {
     });
   }
 
+  ensurePersistentStorageConfigured();
   const store = await readStore();
   const now = new Date().toISOString();
   const chat: StoredChat = {
@@ -191,6 +194,7 @@ export async function getChatById(chatId: string) {
     });
   }
 
+  ensurePersistentStorageConfigured();
   const store = await readStore();
   return store.chats.find((chat) => chat.id === chatId) ?? null;
 }
@@ -205,6 +209,7 @@ export async function getChatMessages(chatId: string) {
     return messages.map(toStoredMessage);
   }
 
+  ensurePersistentStorageConfigured();
   const store = await readStore();
   return store.messagesByChatId[chatId] ?? [];
 }
@@ -251,6 +256,7 @@ export async function appendMessage(
     return toStoredMessage(created);
   }
 
+  ensurePersistentStorageConfigured();
   const store = await readStore();
   const chat = store.chats.find((item) => item.id === chatId);
   if (!chat) {

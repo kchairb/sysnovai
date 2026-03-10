@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getPrisma, hasDatabaseUrl } from "@/lib/server/db";
+import { ensurePersistentStorageConfigured } from "@/lib/server/storage-mode";
 
 export type SettingsStore = {
   profileAccount: {
@@ -128,6 +129,7 @@ export async function getSettingsStore(workspaceExternalId = "workspace-default"
     };
   }
 
+  ensurePersistentStorageConfigured();
   return await readStore();
 }
 
@@ -201,6 +203,7 @@ export async function updateSettingsSection<T extends SettingsSection>(
     };
   }
 
+  ensurePersistentStorageConfigured();
   const store = await readStore();
   if (section === "activeSessions") {
     if (!Array.isArray(data)) {
