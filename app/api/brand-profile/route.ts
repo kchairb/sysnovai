@@ -14,38 +14,48 @@ type UpdateBody = {
 };
 
 export async function GET(request: Request) {
-  if (authEnabled()) {
-    const user = await getAuthenticatedUserFromRequest(request);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    if (authEnabled()) {
+      const user = await getAuthenticatedUserFromRequest(request);
+      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const { searchParams } = new URL(request.url);
+    const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
+    if (hasDatabaseUrl()) {
+      const user = await getAuthenticatedUserFromRequest(request);
+      if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      await ensureWorkspaceForRequest(user, workspaceId);
+    }
+    const profile = await getBrandProfile(workspaceId);
+    return NextResponse.json({ profile });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load brand profile.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-  const { searchParams } = new URL(request.url);
-  const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
-  if (hasDatabaseUrl()) {
-    const user = await getAuthenticatedUserFromRequest(request);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    await ensureWorkspaceForRequest(user, workspaceId);
-  }
-  const profile = await getBrandProfile(workspaceId);
-  return NextResponse.json({ profile });
 }
 
 export async function PUT(request: Request) {
-  const user = authEnabled() ? await getAuthenticatedUserFromRequest(request) : null;
-  if (authEnabled() && !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const user = authEnabled() ? await getAuthenticatedUserFromRequest(request) : null;
+    if (authEnabled() && !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const body = (await request.json().catch(() => ({}))) as UpdateBody;
+    const workspaceId = body.workspaceId?.trim() || "workspace-default";
+    if (hasDatabaseUrl() && user) {
+      await ensureWorkspaceForRequest(user, workspaceId);
+    }
+    const profile = await upsertBrandProfile({
+      workspaceExternalId: workspaceId,
+      brandName: body.brandName,
+      websiteUrl: body.websiteUrl,
+      instagram: body.instagram,
+      defaultMode: body.defaultMode,
+      context: body.context
+    });
+    return NextResponse.json({ profile });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to save brand profile.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-  const body = (await request.json().catch(() => ({}))) as UpdateBody;
-  const workspaceId = body.workspaceId?.trim() || "workspace-default";
-  if (hasDatabaseUrl() && user) {
-    await ensureWorkspaceForRequest(user, workspaceId);
-  }
-  const profile = await upsertBrandProfile({
-    workspaceExternalId: workspaceId,
-    brandName: body.brandName,
-    websiteUrl: body.websiteUrl,
-    instagram: body.instagram,
-    defaultMode: body.defaultMode,
-    context: body.context
-  });
-  return NextResponse.json({ profile });
 }

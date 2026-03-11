@@ -127,6 +127,7 @@ export async function ingestBrandUrls(input: {
   urls: string[];
   crawlSite?: boolean;
   maxPagesPerSite?: number;
+  brandName?: string;
 }) {
   const urls = input.urls.slice(0, 8);
   const maxPagesPerSite = Math.min(Math.max(input.maxPagesPerSite ?? 10, 1), 50);
@@ -169,6 +170,7 @@ export async function ingestBrandUrls(input: {
         const category = detectCategoryForUrl(currentParsed);
 
         const content = [
+          input.brandName ? `Brand: ${input.brandName}` : "",
           `Source URL: ${currentParsed.toString()}`,
           metaDescription ? `Summary: ${metaDescription}` : "",
           bodyText ? `Extracted text: ${bodyText}` : ""
@@ -181,7 +183,7 @@ export async function ingestBrandUrls(input: {
           category,
           title: pageTitle.slice(0, 160),
           content,
-          tags: [currentParsed.hostname, category, "auto-ingest", "crawl"]
+          tags: [currentParsed.hostname, category, "auto-ingest", "crawl", input.brandName || "brand"]
         });
         entriesCreated += 1;
         if (!firstEntry) {

@@ -27,6 +27,13 @@ function hasAnyToken(query: string, tokens: string[]) {
   return tokens.some((token) => query.includes(token));
 }
 
+function scoreByQueryMatch(query: string, text: string) {
+  const normalizedText = text.toLowerCase();
+  const tokens = query.split(/\s+/).filter((token) => token.length > 1);
+  if (!tokens.length) return 0;
+  return tokens.reduce((sum, token) => sum + (normalizedText.includes(token) ? 1 : 0), 0);
+}
+
 export async function retrieveContext(input: RagRequest): Promise<RetrievedContext> {
   const query = normalize(input.message);
   const workspaceContext = getWorkspaceContext(input.workspaceId);
@@ -34,19 +41,30 @@ export async function retrieveContext(input: RagRequest): Promise<RetrievedConte
   const brandEntries: BrandKnowledgeEntryRecord[] = await listBrandKnowledgeEntries({
     workspaceId: input.workspaceId,
     includeInactive: false,
-    search: query,
+    search: undefined,
     limit: 120
   }).catch(() => [] as BrandKnowledgeEntryRecord[]);
-  const brandFaqs = brandEntries
+  const matchedBrandEntries = [...brandEntries]
+    .map((entry) => ({
+      entry,
+      score: scoreByQueryMatch(query, `${entry.title} ${entry.content} ${entry.tags.join(" ")}`)
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.entry);
+  const selectedBrandEntries = matchedBrandEntries.length
+    ? matchedBrandEntries.slice(0, 16)
+    : brandEntries.slice(0, 10);
+  const brandFaqs = selectedBrandEntries
     .filter((entry) => entry.category === "faq")
     .map((entry) => `${entry.title}: ${entry.content}`);
-  const brandPolicies = brandEntries
+  const brandPolicies = selectedBrandEntries
     .filter((entry) => entry.category === "policy")
     .map((entry) => `${entry.title}: ${entry.content}`);
-  const brandProducts = brandEntries
+  const brandProducts = selectedBrandEntries
     .filter((entry) => entry.category === "product")
     .map((entry) => `${entry.title}: ${entry.content}`);
-  const brandDocuments = brandEntries
+  const brandDocuments = selectedBrandEntries
     .filter((entry) => entry.category === "document" || entry.category === "brand")
     .map((entry) => `${entry.title}: ${entry.content}`);
   if (brandProfile?.context) {

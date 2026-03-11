@@ -54,6 +54,7 @@ export default function KnowledgePage() {
   const [testReply, setTestReply] = useState("");
   const [testMeta, setTestMeta] = useState<{ provider?: string; model?: string } | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [profileReport, setProfileReport] = useState("");
   const [brandProfile, setBrandProfile] = useState<BrandProfile>({
     workspaceId: "workspace-default",
     brandName: "My Brand",
@@ -92,11 +93,16 @@ export default function KnowledgePage() {
 
   const loadBrandProfile = async () => {
     const response = await fetch(`/api/brand-profile?workspaceId=${encodeURIComponent(workspaceId)}`);
-    if (!response.ok) return;
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setProfileReport(payload.error ?? tr("settings.loadFailed", "Failed to load settings."));
+      return;
+    }
     const payload = (await response.json()) as { profile?: BrandProfile };
     if (payload.profile) {
       setBrandProfile(payload.profile);
       setTestMode(payload.profile.defaultMode);
+      setProfileReport("");
     }
   };
 
@@ -274,6 +280,7 @@ export default function KnowledgePage() {
 
   const onSaveBrandProfile = async () => {
     setProfileSaving(true);
+    setProfileReport("");
     try {
       const response = await fetch("/api/brand-profile", {
         method: "PUT",
@@ -288,9 +295,15 @@ export default function KnowledgePage() {
         })
       });
       if (!response.ok) {
-        throw new Error(tr("settings.saveFailed", "Failed to save settings."));
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? tr("settings.saveFailed", "Failed to save settings."));
       }
       await loadBrandProfile();
+      setProfileReport(tr("settings.savedSuccessfully", "Settings saved successfully."));
+    } catch (error) {
+      setProfileReport(
+        error instanceof Error ? error.message : tr("settings.saveFailed", "Failed to save settings.")
+      );
     } finally {
       setProfileSaving(false);
     }
@@ -446,6 +459,7 @@ export default function KnowledgePage() {
             {tr("knowledge.useWebsiteForCrawl", "Use website URL in crawler")}
           </Button>
         </div>
+        {!!profileReport && <p className="mt-2 text-xs text-muted">{profileReport}</p>}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">

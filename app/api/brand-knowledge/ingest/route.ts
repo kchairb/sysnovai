@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authEnabled, getAuthenticatedUserFromRequest } from "@/lib/server/auth";
 import { hasDatabaseUrl } from "@/lib/server/db";
 import { ingestBrandUrls } from "@/lib/server/brand-ingest";
+import { getBrandProfile } from "@/lib/server/brand-profile";
 import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type IngestBody = {
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
       workspaceId,
       urls,
       crawlSite: Boolean(body.crawlSite),
-      maxPagesPerSite: Number(body.maxPagesPerSite ?? 10)
+      maxPagesPerSite: Number(body.maxPagesPerSite ?? 10),
+      brandName: (await getBrandProfile(workspaceId).catch(() => null))?.brandName
     });
     const successCount = results.filter((row) => row.ok).length;
     return NextResponse.json({
