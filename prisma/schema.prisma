@@ -170,3 +170,23 @@ model RateLimitEvent {
   @@index([bucket, createdAt(sort: Desc)])
   @@index([clientKey, createdAt(sort: Desc)])
 }
+
+model TunisianLearningCandidate {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  phrase        String
+  normalized    String
+  language      String
+  source        String
+  status        String   @default("pending")
+  score         Int
+  reviewNotes   String?
+  submittedBy   String?
+  reviewedBy    String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  reviewedAt    DateTime?
+
+  @@index([workspaceId, status, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}

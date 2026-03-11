@@ -11,6 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type LearningCandidate = {
+  id: string;
+  phrase: string;
+  language: string;
+  source: string;
+  status: "pending" | "approved" | "rejected";
+  score: number;
+  createdAt: string;
+};
+
 export default function TunisianAiPage() {
   const { tr } = useLocale();
   const [language, setLanguage] = useState<"darija" | "ar" | "fr" | "en">("darija");
@@ -24,6 +34,13 @@ export default function TunisianAiPage() {
   const [historyRuns, setHistoryRuns] = useState<
     Array<{ id: string; averageScore: number; sampleCount: number; createdAt: string }>
   >([]);
+  const [learningText, setLearningText] = useState("");
+  const [learningStatus, setLearningStatus] = useState<"pending" | "approved" | "rejected" | "all">(
+    "pending"
+  );
+  const [learningQueue, setLearningQueue] = useState<LearningCandidate[]>([]);
+  const [submittingLearning, setSubmittingLearning] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<{
     averageScore: number;
     sampleCount: number;
@@ -100,19 +117,76 @@ export default function TunisianAiPage() {
     setHistoryRuns(payload.runs ?? []);
   };
 
+  const loadLearningQueue = async (selectedWorkspaceId: string, status = learningStatus) => {
+    const response = await fetch(
+      `/api/tunisian-learning/queue?workspaceId=${encodeURIComponent(selectedWorkspaceId)}&status=${status}&limit=60`
+    );
+    if (!response.ok) return;
+    const payload = (await response.json()) as { candidates?: LearningCandidate[] };
+    setLearningQueue(payload.candidates ?? []);
+  };
+
+  const submitLearningCandidate = async () => {
+    if (!learningText.trim()) return;
+    setSubmittingLearning(true);
+    try {
+      const response = await fetch("/api/tunisian-learning/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          phrase: learningText.trim(),
+          language,
+          source: "manual"
+        })
+      });
+      if (!response.ok) {
+        throw new Error(tr("tunisian.learningSubmitFailed", "Failed to submit learning phrase"));
+      }
+      setLearningText("");
+      await loadLearningQueue(workspaceId);
+    } finally {
+      setSubmittingLearning(false);
+    }
+  };
+
+  const reviewLearning = async (candidateId: string, action: "approve" | "reject") => {
+    setReviewingId(candidateId);
+    try {
+      const response = await fetch(`/api/tunisian-learning/queue/${candidateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      if (!response.ok) {
+        throw new Error(tr("tunisian.learningReviewFailed", "Failed to review learning candidate"));
+      }
+      await loadLearningQueue(workspaceId);
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
   useEffect(() => {
     const selected = getSelectedWorkspaceId();
     setWorkspaceId(selected);
     void loadHistory(selected);
+    void loadLearningQueue(selected, "pending");
     const onWorkspaceChange = (event: Event) => {
       const custom = event as CustomEvent<{ workspaceId?: string }>;
       const next = custom.detail?.workspaceId ?? getSelectedWorkspaceId();
       setWorkspaceId(next);
       void loadHistory(next);
+      void loadLearningQueue(next, "pending");
     };
     window.addEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
     return () => window.removeEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
   }, []);
+
+  useEffect(() => {
+    void loadLearningQueue(workspaceId, learningStatus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [learningStatus]);
 
   return (
     <div className="space-y-4">
@@ -179,6 +253,72 @@ export default function TunisianAiPage() {
                 <p className="mt-1 text-xs text-muted">{pack.bullets[0]}</p>
               </div>
             ))}
+          </div>
+
+          <h3 className="mt-5 text-sm font-semibold">
+            {tr("tunisian.learningQueue", "Learning queue (phase 1)")}
+          </h3>
+          <div className="mt-2 rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <Input
+              placeholder={tr("tunisian.learningInput", "Add a Tunisian word/phrase to learn")}
+              value={learningText}
+              onChange={(event) => setLearningText(event.target.value)}
+            />
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1">
+                {(["pending", "approved", "rejected", "all"] as const).map((status) => (
+                  <Button
+                    key={status}
+                    size="sm"
+                    variant={learningStatus === status ? "default" : "outline"}
+                    onClick={() => setLearningStatus(status)}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+              <Button size="sm" onClick={() => void submitLearningCandidate()} disabled={submittingLearning}>
+                {submittingLearning
+                  ? tr("common.saving", "Saving...")
+                  : tr("tunisian.submitCandidate", "Submit")}
+              </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {learningQueue.map((candidate) => (
+                <div key={candidate.id} className="rounded-lg border border-border/70 bg-elevated/25 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{candidate.phrase}</p>
+                    <Badge>{candidate.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-secondary">
+                    {candidate.language} · score {candidate.score} · {new Date(candidate.createdAt).toLocaleString()}
+                  </p>
+                  {candidate.status === "pending" && (
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={reviewingId === candidate.id}
+                        onClick={() => void reviewLearning(candidate.id, "approve")}
+                      >
+                        {tr("common.approve", "Approve")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={reviewingId === candidate.id}
+                        onClick={() => void reviewLearning(candidate.id, "reject")}
+                      >
+                        {tr("common.reject", "Reject")}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {!learningQueue.length && (
+                <p className="text-xs text-muted">{tr("common.noData", "No data yet.")}</p>
+              )}
+            </div>
           </div>
         </article>
 
