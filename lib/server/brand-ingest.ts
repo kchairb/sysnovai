@@ -44,6 +44,7 @@ function sanitizeText(value: string) {
     .replace(/&#39;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(Number(num)))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -351,6 +352,93 @@ function pickFirst(values: string[]) {
   return values.find((item) => item.trim().length > 0);
 }
 
+function normalizeProductName(raw: string) {
+  return sanitizeText(raw)
+    .replace(/\s*\|\s*collection prestige tunisie$/i, "")
+    .replace(/\s*\|\s*boutique parfums de luxe$/i, "")
+    .replace(/\s*archives$/i, "")
+    .trim();
+}
+
+function isLikelyCategoryName(name: string) {
+  const lower = name.toLowerCase();
+  return (
+    lower.includes("archives") ||
+    lower.includes("boutique") ||
+    lower.includes("categorie") ||
+    lower.includes("category") ||
+    lower.includes("parfums de luxe")
+  );
+}
+
+function normalizeAvailability(value?: string) {
+  if (!value) return "";
+  const lower = value.toLowerCase();
+  if (lower.includes("instock") || lower.includes("in stock") || lower.includes("disponible")) {
+    return "In stock";
+  }
+  if (lower.includes("outofstock") || lower.includes("out of stock") || lower.includes("rupture")) {
+    return "Out of stock";
+  }
+  if (lower.includes("preorder") || lower.includes("pre-order")) {
+    return "Pre-order";
+  }
+  return "";
+}
+
+function extractProductStructuredData(html: string) {
+  const products: Array<{ name: string; availability?: string }> = [];
+  const scriptRegex =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match = scriptRegex.exec(html);
+  while (match) {
+    const rawJson = match[1]?.trim();
+    if (!rawJson) {
+      match = scriptRegex.exec(html);
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(rawJson) as unknown;
+      const stack: unknown[] = [parsed];
+      while (stack.length) {
+        const node = stack.pop();
+        if (!node) continue;
+        if (Array.isArray(node)) {
+          for (const item of node) stack.push(item);
+          continue;
+        }
+        if (typeof node !== "object") continue;
+        const obj = node as Record<string, unknown>;
+        const graph = obj["@graph"];
+        if (Array.isArray(graph)) {
+          for (const item of graph) stack.push(item);
+        }
+        const type = obj["@type"];
+        const typeList = Array.isArray(type) ? type.map(String) : [String(type ?? "")];
+        const isProduct = typeList.some((item) => item.toLowerCase() === "product");
+        if (!isProduct) continue;
+        const nameRaw = typeof obj.name === "string" ? obj.name : "";
+        const availabilityRaw =
+          typeof obj.availability === "string"
+            ? obj.availability
+            : typeof (obj.offers as { availability?: unknown } | undefined)?.availability === "string"
+              ? String((obj.offers as { availability?: unknown }).availability)
+              : "";
+        const name = normalizeProductName(nameRaw);
+        if (!name || isLikelyCategoryName(name)) continue;
+        products.push({
+          name,
+          availability: normalizeAvailability(availabilityRaw)
+        });
+      }
+    } catch {
+      // ignore invalid json-ld blocks
+    }
+    match = scriptRegex.exec(html);
+  }
+  return products;
+}
+
 function findPolicySnippet(text: string, keywords: string[]) {
   const lower = text.toLowerCase();
   for (const keyword of keywords) {
@@ -390,7 +478,7 @@ export async function autoFillBrandFromWebsite(input: {
   const phones = new Set<string>();
   const emails = new Set<string>();
   const socials = new Set<string>();
-  const productNames = new Set<string>();
+  const productMap = new Map<string, string>();
   const shippingSnippets: string[] = [];
   const returnSnippets: string[] = [];
   const paymentSnippets: string[] = [];
@@ -423,14 +511,25 @@ export async function autoFillBrandFromWebsite(input: {
     for (const social of contact.socials) socials.add(social);
 
     const pathLower = pageUrl.pathname.toLowerCase();
-    const isProductLike =
-      pathLower.includes("/product") ||
-      pathLower.includes("/products") ||
-      pathLower.includes("/shop") ||
-      pathLower.includes("/store") ||
-      pathLower.includes("/item");
-    if (isProductLike && title) {
-      productNames.add(title.slice(0, 120));
+    const structuredProducts = extractProductStructuredData(html);
+    for (const product of structuredProducts) {
+      if (!productMap.has(product.name)) {
+        productMap.set(product.name, product.availability ?? "");
+      }
+    }
+
+    const isProductDetailPath =
+      (pathLower.includes("/product/") ||
+        pathLower.includes("/products/") ||
+        pathLower.includes("/item/")) &&
+      !pathLower.includes("/product-category/") &&
+      !pathLower.includes("/category/");
+    if (isProductDetailPath && title) {
+      const normalizedTitle = normalizeProductName(title).slice(0, 120);
+      if (normalizedTitle && !isLikelyCategoryName(normalizedTitle) && !productMap.has(normalizedTitle)) {
+        const availabilityFromText = normalizeAvailability(body);
+        productMap.set(normalizedTitle, availabilityFromText);
+      }
     }
 
     const shippingSnippet = findPolicySnippet(body, ["shipping", "delivery", "livraison", "توصيل"]);
@@ -480,7 +579,9 @@ export async function autoFillBrandFromWebsite(input: {
     shippingInfo: pickFirst(shippingSnippets),
     returnPolicy: pickFirst(returnSnippets),
     paymentMethods: paymentMethods.join(", "),
-    keyProducts: Array.from(productNames).slice(0, 20),
+    keyProducts: Array.from(productMap.entries())
+      .map(([name, availability]) => (availability ? `${name} (${availability})` : name))
+      .slice(0, 30),
     context,
     pagesScanned
   };
