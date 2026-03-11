@@ -425,3 +425,94 @@ export async function deleteWorkspaceProduct(input: { id: string; workspaceId: s
       )
   );
 }
+
+function isInvalidAutofillProductCandidate(item: Pick<ProductRecord, "name" | "sourceUrl" | "category" | "tags">) {
+  const name = item.name.toLowerCase();
+  const source = (item.sourceUrl ?? "").toLowerCase();
+  const category = (item.category ?? "").toLowerCase();
+  const tags = item.tags.map((tag) => tag.toLowerCase());
+  const nameLooksLikeCategory =
+    name.includes("archive") ||
+    name.includes("archives") ||
+    name.includes("category") ||
+    name.includes("categorie") ||
+    name.includes("collection") ||
+    name.includes("boutique");
+  const sourceLooksLikeCategory =
+    source.includes("/product-category/") ||
+    source.includes("/category/") ||
+    source.includes("/collections/") ||
+    source.includes("/collection/") ||
+    source.includes("/shop/") ||
+    source.endsWith("/shop") ||
+    source.includes("/store/") ||
+    source.endsWith("/store");
+  const crawlerAutofillTag = tags.includes("autofill") || tags.includes("shop-crawl");
+  return (nameLooksLikeCategory || sourceLooksLikeCategory || category === "archive") && crawlerAutofillTag;
+}
+
+export async function cleanupInvalidAutofillProducts(input: {
+  workspaceId: string;
+  brandId?: string;
+  dryRun?: boolean;
+  limit?: number;
+}) {
+  const limit = Math.min(Math.max(input.limit ?? 600, 1), 2000);
+  const dryRun = input.dryRun !== false;
+  if (hasDatabaseUrl()) {
+    const prisma = getPrisma();
+    const rows = await prisma.product.findMany({
+      where: {
+        workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {}),
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        sourceUrl: true,
+        category: true,
+        tags: true
+      },
+      take: limit
+    });
+    const badIds = rows
+      .filter((row) =>
+        isInvalidAutofillProductCandidate({
+          name: row.name,
+          sourceUrl: row.sourceUrl ?? undefined,
+          category: row.category ?? undefined,
+          tags: Array.isArray(row.tags) ? row.tags.filter((x): x is string => typeof x === "string") : []
+        })
+      )
+      .map((row) => row.id);
+    if (!dryRun && badIds.length) {
+      await prisma.product.deleteMany({
+        where: {
+          id: { in: badIds },
+          workspace: { externalId: input.workspaceId },
+          ...(input.brandId ? { brandId: input.brandId } : {})
+        }
+      });
+    }
+    return { scanned: rows.length, matched: badIds.length, deleted: dryRun ? 0 : badIds.length };
+  }
+
+  ensurePersistentStorageConfigured();
+  const store = global.__sysnovaProducts ?? [];
+  const matching = store.filter(
+    (item) =>
+      item.workspaceId === input.workspaceId &&
+      (input.brandId ? item.brandId === input.brandId : true) &&
+      isInvalidAutofillProductCandidate(item)
+  );
+  if (!dryRun && matching.length) {
+    const idSet = new Set(matching.map((item) => item.id));
+    global.__sysnovaProducts = store.filter((item) => !idSet.has(item.id));
+  }
+  return {
+    scanned: store.length,
+    matched: matching.length,
+    deleted: dryRun ? 0 : matching.length
+  };
+}

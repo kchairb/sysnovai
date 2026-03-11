@@ -227,6 +227,55 @@ export default function ProductsPage() {
     setReport(tr("products.deleted", "Product deleted."));
   };
 
+  const onCleanInvalid = async () => {
+    setLoading(true);
+    setReport("");
+    try {
+      const previewResponse = await fetch("/api/products/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId, brandId, dryRun: true, limit: 1200 })
+      });
+      const previewPayload = (await previewResponse.json().catch(() => ({}))) as {
+        report?: { scanned?: number; matched?: number };
+        error?: string;
+      };
+      if (!previewResponse.ok) {
+        throw new Error(previewPayload.error ?? "Failed to preview invalid products.");
+      }
+      const matched = previewPayload.report?.matched ?? 0;
+      if (!matched) {
+        setReport("No invalid autofill category/archive products found.");
+        return;
+      }
+      const allow = window.confirm(`Found ${matched} invalid autofill products. Delete them now?`);
+      if (!allow) {
+        setReport(`Preview complete: ${matched} invalid products found.`);
+        return;
+      }
+      const response = await fetch("/api/products/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId, brandId, dryRun: false, limit: 1200 })
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        report?: { deleted?: number; scanned?: number };
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to clean invalid products.");
+      }
+      await loadProducts();
+      setReport(
+        `Cleaned invalid products: ${payload.report?.deleted ?? 0} deleted (scanned ${payload.report?.scanned ?? 0}).`
+      );
+    } catch (error) {
+      setReport(error instanceof Error ? error.message : "Failed to clean invalid products.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <section className="dashboard-hero-surface premium-page-hero">
@@ -305,6 +354,9 @@ export default function ProductsPage() {
             </select>
             <Button size="sm" variant="outline" onClick={() => void onSearch()} disabled={loading}>
               {loading ? tr("common.loading", "Loading...") : tr("common.search", "Search")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void onCleanInvalid()} disabled={loading}>
+              Clean invalid
             </Button>
           </div>
           <div className="mt-4 space-y-2">
