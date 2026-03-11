@@ -1372,6 +1372,7 @@ export default function KnowledgePage() {
 
       {activeFlowStep === "learn" && (
       <section className="space-y-4">
+        <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <article className="premium-panel p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1442,6 +1443,7 @@ export default function KnowledgePage() {
             ))}
           </div>
         </article>
+        </div>
         <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
           <article className="premium-panel p-4">
             <h2 className="text-lg font-medium">
@@ -1494,9 +1496,14 @@ export default function KnowledgePage() {
             </div>
 
             <div className="mt-5 rounded-xl border border-border/70 bg-elevated/20 p-3">
-              <p className="text-sm font-semibold">
-                {tr("knowledge.linkIngestion", "Learn from website/social links")}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">
+                  {tr("knowledge.linkIngestion", "Learn from website/social links")}
+                </p>
+                <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("test")}>
+                  {tr("knowledge.nextTest", "Next: Test assistant")}
+                </Button>
+              </div>
               <Textarea
                 value={ingestUrls}
                 onChange={(event) => setIngestUrls(event.target.value)}
@@ -1526,29 +1533,29 @@ export default function KnowledgePage() {
                     className="h-8 w-16 rounded-md border border-border/70 bg-elevated/30 px-2"
                   />
                 </label>
-              <label className="inline-flex items-center gap-2 text-xs text-secondary">
-                {tr("knowledge.crawlStrategy", "Strategy")}
-                <select
-                  value={crawlStrategy}
-                  onChange={(event) =>
-                    setCrawlStrategy(
-                      event.target.value as "auto" | "balanced" | "products-first" | "support-first"
-                    )
-                  }
-                  className="h-8 rounded-md border border-border/70 bg-elevated/30 px-2"
-                >
-                  <option value="auto">{tr("knowledge.crawlStrategyAuto", "Auto")}</option>
-                  <option value="balanced">
-                    {tr("knowledge.crawlStrategyBalanced", "Balanced")}
-                  </option>
-                  <option value="products-first">
-                    {tr("knowledge.crawlStrategyProducts", "Products first")}
-                  </option>
-                  <option value="support-first">
-                    {tr("knowledge.crawlStrategySupport", "Support first")}
-                  </option>
-                </select>
-              </label>
+                <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                  {tr("knowledge.crawlStrategy", "Strategy")}
+                  <select
+                    value={crawlStrategy}
+                    onChange={(event) =>
+                      setCrawlStrategy(
+                        event.target.value as "auto" | "balanced" | "products-first" | "support-first"
+                      )
+                    }
+                    className="h-8 rounded-md border border-border/70 bg-elevated/30 px-2"
+                  >
+                    <option value="auto">{tr("knowledge.crawlStrategyAuto", "Auto")}</option>
+                    <option value="balanced">
+                      {tr("knowledge.crawlStrategyBalanced", "Balanced")}
+                    </option>
+                    <option value="products-first">
+                      {tr("knowledge.crawlStrategyProducts", "Products first")}
+                    </option>
+                    <option value="support-first">
+                      {tr("knowledge.crawlStrategySupport", "Support first")}
+                    </option>
+                  </select>
+                </label>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <Button size="sm" onClick={() => void onIngestLinks()} disabled={ingesting}>
@@ -1556,11 +1563,8 @@ export default function KnowledgePage() {
                     ? tr("knowledge.ingesting", "Ingesting...")
                     : tr("knowledge.ingestLinks", "Ingest links")}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("test")}>
-                  {tr("knowledge.nextTest", "Next: Test assistant")}
-                </Button>
-                {!!ingestReport && <p className="text-xs text-muted">{ingestReport}</p>}
               </div>
+              {!!ingestReport && <p className="mt-2 text-xs text-muted">{ingestReport}</p>}
               {!!ingestDetails.length && (
                 <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/70 bg-elevated/15 p-2">
                   {ingestDetails.map((item) => (
@@ -1641,7 +1645,7 @@ export default function KnowledgePage() {
       )}
 
       {activeFlowStep === "test" && (
-      <section className="grid gap-4 xl:grid-cols-1">
+      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
         <article className="premium-panel p-4">
           <h2 className="text-lg font-medium">
             {tr("knowledge.brandChatTester", "Brand chat tester")}
@@ -1707,9 +1711,6 @@ export default function KnowledgePage() {
               <Button size="sm" onClick={() => void onTestBrandAssistant()} disabled={testing}>
                 {testing ? tr("workspace.generating", "Generating...") : tr("knowledge.testNow", "Test now")}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setPopupOpen(true)}>
-                {tr("knowledge.openPopupPreview", "Open popup preview")}
-              </Button>
             </div>
             {testMeta?.provider && (
               <p className="text-xs text-muted">
@@ -1725,6 +1726,46 @@ export default function KnowledgePage() {
               {testReply || tr("knowledge.noReplyYet", "No test reply yet.")}
             </p>
           </div>
+        </article>
+        <article className="premium-panel p-4">
+          <h3 className="text-base font-medium">{tr("knowledge.testChecklist", "Test checklist")}</h3>
+          <p className="mt-1 text-xs text-secondary">
+            {tr(
+              "knowledge.testChecklistDescription",
+              "Run support and product prompts, then validate tone, policy accuracy, and product guidance."
+            )}
+          </p>
+          <div className="mt-3 space-y-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setTestPrompt("What are your delivery and return conditions in Tunisia?")}
+            >
+              {tr("knowledge.quickTestSupport", "Quick support test")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setTestPrompt("Recommend 2 best products for a premium gift with short reasons.")}
+            >
+              {tr("knowledge.quickTestProducts", "Quick product test")}
+            </Button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => setPopupOpen(true)}>
+              {tr("knowledge.openPopupPreview", "Open popup preview")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("learn")}>
+              {tr("knowledge.backToLearn", "Back to learn")}
+            </Button>
+          </div>
+          {testMeta?.provider && (
+            <p className="mt-3 text-xs text-muted">
+              Provider: {testMeta.provider}/{testMeta.model ?? "default"}
+            </p>
+          )}
         </article>
       </section>
       )}
