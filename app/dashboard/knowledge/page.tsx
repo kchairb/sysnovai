@@ -129,6 +129,9 @@ export default function KnowledgePage() {
     paymentMethods: "",
     keyProducts: ""
   });
+  const [quickWebsiteUrl, setQuickWebsiteUrl] = useState("");
+  const [quickBrandName, setQuickBrandName] = useState("");
+  const [quickSettingUp, setQuickSettingUp] = useState(false);
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -761,6 +764,156 @@ export default function KnowledgePage() {
     }
   };
 
+  const onQuickSetupFromLink = async (createNewBrand: boolean) => {
+    const websiteUrl = quickWebsiteUrl.trim() || brandProfile.websiteUrl.trim();
+    if (!websiteUrl) {
+      setProfileReport(tr("knowledge.websiteRequired", "Website URL is required for autofill."));
+      return;
+    }
+    if (createNewBrand && !quickBrandName.trim()) {
+      setProfileReport(tr("knowledge.brandNameRequired", "Brand name is required."));
+      return;
+    }
+    setQuickSettingUp(true);
+    setProfileReport("");
+    try {
+      let targetBrandId = brandId;
+      const targetBrandName =
+        (createNewBrand ? quickBrandName.trim() : quickBrandName.trim() || brandProfile.brandName.trim()) ||
+        "My Brand";
+
+      if (createNewBrand) {
+        const createResponse = await fetch("/api/brands", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workspaceId, brandName: targetBrandName })
+        });
+        const createPayload = (await createResponse.json().catch(() => ({}))) as {
+          brand?: { brandId: string };
+          error?: string;
+        };
+        if (!createResponse.ok || !createPayload.brand?.brandId) {
+          throw new Error(createPayload.error ?? tr("knowledge.createBrandFailed", "Failed to create brand."));
+        }
+        targetBrandId = createPayload.brand.brandId;
+      }
+
+      const autofillResponse = await fetch("/api/brand-profile/autofill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          brandId: targetBrandId,
+          websiteUrl,
+          maxPages: 12,
+          persistProducts: true
+        })
+      });
+      const autofillPayload = (await autofillResponse.json().catch(() => ({}))) as {
+        data?: {
+          instagram?: string;
+          contactPhone?: string;
+          contactEmail?: string;
+          whatsapp?: string;
+          address?: string;
+          shippingInfo?: string;
+          returnPolicy?: string;
+          paymentMethods?: string;
+          keyProducts?: string[];
+          context?: string;
+          pagesScanned?: number;
+        };
+        persistedProducts?: { created?: number; updated?: number };
+        error?: string;
+      };
+      if (!autofillResponse.ok || !autofillPayload.data) {
+        throw new Error(autofillPayload.error ?? tr("knowledge.autofillFailed", "Failed to auto-fill brand data."));
+      }
+      const data = autofillPayload.data;
+
+      const bootstrapResponse = await fetch("/api/brand-profile/bootstrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          brandId: targetBrandId,
+          brandName: targetBrandName,
+          websiteUrl,
+          instagram: data.instagram || "",
+          defaultMode: brandProfile.defaultMode,
+          context: data.context || "",
+          contactPhone: data.contactPhone || "",
+          contactEmail: data.contactEmail || "",
+          whatsapp: data.whatsapp || "",
+          address: data.address || "",
+          shippingInfo: data.shippingInfo || "",
+          returnPolicy: data.returnPolicy || "",
+          paymentMethods: data.paymentMethods || "",
+          keyProducts: (data.keyProducts ?? []).join("\n")
+        })
+      });
+      const bootstrapPayload = (await bootstrapResponse.json().catch(() => ({}))) as {
+        stats?: { knowledgeCreated?: number; knowledgeUpdated?: number; productsCreated?: number };
+        error?: string;
+      };
+      if (!bootstrapResponse.ok) {
+        throw new Error(bootstrapPayload.error ?? tr("knowledge.bootstrapFailed", "Failed to create starter kit."));
+      }
+
+      setSelectedBrandId(targetBrandId);
+      setBrandId(targetBrandId);
+      setBrandNameDraft("");
+      setQuickBrandName("");
+      setBrandProfile((prev) => ({
+        ...prev,
+        brandId: targetBrandId,
+        brandName: targetBrandName,
+        websiteUrl,
+        instagram: data.instagram || prev.instagram,
+        context: data.context || prev.context
+      }));
+      setStarterKit((prev) => ({
+        ...prev,
+        contactPhone: data.contactPhone || prev.contactPhone,
+        contactEmail: data.contactEmail || prev.contactEmail,
+        whatsapp: data.whatsapp || prev.whatsapp,
+        address: data.address || prev.address,
+        shippingInfo: data.shippingInfo || prev.shippingInfo,
+        returnPolicy: data.returnPolicy || prev.returnPolicy,
+        paymentMethods: data.paymentMethods || prev.paymentMethods,
+        keyProducts: data.keyProducts?.length ? data.keyProducts.join("\n") : prev.keyProducts
+      }));
+      setTestPrompt(
+        `Present ${targetBrandName} briefly and explain how clients can contact support and place an order.`
+      );
+      setActiveFlowStep("test");
+      setProfileReport(
+        `${tr("knowledge.autofillDone", "Auto-filled from website")} + ${tr(
+          "knowledge.bootstrapDone",
+          "Starter kit created"
+        )}: ${tr("knowledge.pagesCrawled", "Pages crawled")} ${data.pagesScanned ?? 0} | ${tr(
+          "common.create",
+          "Create"
+        )} ${bootstrapPayload.stats?.knowledgeCreated ?? 0} | ${tr("common.update", "Update")} ${
+          bootstrapPayload.stats?.knowledgeUpdated ?? 0
+        } | ${tr("products.addProduct", "Products")} +${
+          (bootstrapPayload.stats?.productsCreated ?? 0) + (autofillPayload.persistedProducts?.created ?? 0)
+        }`
+      );
+      await loadBrands();
+      await loadEntries();
+      await loadCrawlHistory();
+    } catch (error) {
+      setProfileReport(
+        error instanceof Error
+          ? error.message
+          : tr("knowledge.bootstrapFailed", "Failed to create starter kit.")
+      );
+    } finally {
+      setQuickSettingUp(false);
+    }
+  };
+
   const onTestBrandAssistant = async () => {
     if (!testPrompt.trim()) return;
     setTesting(true);
@@ -940,6 +1093,47 @@ export default function KnowledgePage() {
             "knowledge.brandSetupDescription",
             "Create your brand profile once. Crawling and chatbot testing will use this context automatically."
           )}
+        </p>
+        <div className="mt-3 rounded-xl border border-accent/30 bg-accent/10 p-3">
+          <p className="text-sm font-semibold">
+            {tr("knowledge.linkFirstSetup", "Link-first quick setup")}
+          </p>
+          <p className="mt-1 text-xs text-secondary">
+            {tr(
+              "knowledge.linkFirstSetupDescription",
+              "Paste your website first, then create brand + auto-fetch context, products, contacts, and policies."
+            )}
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr]">
+            <Input
+              value={quickWebsiteUrl}
+              onChange={(event) => setQuickWebsiteUrl(event.target.value)}
+              placeholder={tr("knowledge.websiteUrl", "Website URL")}
+            />
+            <Input
+              value={quickBrandName}
+              onChange={(event) => setQuickBrandName(event.target.value)}
+              placeholder={tr("knowledge.newBrand", "New brand name")}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void onQuickSetupFromLink(true)} disabled={quickSettingUp}>
+              {quickSettingUp
+                ? tr("knowledge.creatingStarterKit", "Creating starter kit...")
+                : tr("knowledge.createBrandFromLink", "Create brand from link")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void onQuickSetupFromLink(false)}
+              disabled={quickSettingUp}
+            >
+              {tr("knowledge.autofillCurrentBrand", "Auto-fill current brand from link")}
+            </Button>
+          </div>
+        </div>
+        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">
+          {tr("knowledge.profileRefinement", "Brand profile refinement (optional)")}
         </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
           <select
