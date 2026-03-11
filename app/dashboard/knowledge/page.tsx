@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Circle } from "lucide-react";
 import { getSelectedWorkspaceId, WORKSPACE_EVENT } from "@/lib/client/workspace-selection";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -421,6 +422,7 @@ export default function KnowledgePage() {
               variant={activeFlowStep === "setup" ? "default" : "outline"}
               onClick={() => setActiveFlowStep("setup")}
             >
+              {hasBrandSetup ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Circle className="mr-1 h-3.5 w-3.5" />}
               1. {tr("knowledge.stepSetup", "Setup")}
             </Button>
             <Button
@@ -428,6 +430,7 @@ export default function KnowledgePage() {
               variant={activeFlowStep === "learn" ? "default" : "outline"}
               onClick={() => setActiveFlowStep("learn")}
             >
+              {hasLearnedData ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Circle className="mr-1 h-3.5 w-3.5" />}
               2. {tr("knowledge.stepLearn", "Learn")}
             </Button>
             <Button
@@ -435,6 +438,7 @@ export default function KnowledgePage() {
               variant={activeFlowStep === "test" ? "default" : "outline"}
               onClick={() => setActiveFlowStep("test")}
             >
+              {hasTested ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Circle className="mr-1 h-3.5 w-3.5" />}
               3. {tr("knowledge.stepTest", "Test")}
             </Button>
           </div>
@@ -467,6 +471,7 @@ export default function KnowledgePage() {
         </div>
       </section>
 
+      {activeFlowStep === "setup" && (
       <section className="premium-panel p-4">
         <h2 className="text-lg font-medium">{tr("knowledge.brandSetup", "Step 1: Brand setup")}</h2>
         <p className="mt-1 text-sm text-secondary">
@@ -554,7 +559,9 @@ export default function KnowledgePage() {
           </Button>
         </div>
       </section>
+      )}
 
+      {activeFlowStep === "learn" && (
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <article className="premium-panel p-4">
           <h2 className="text-lg font-medium">
@@ -581,7 +588,73 @@ export default function KnowledgePage() {
             <p className="text-xl font-semibold">{activeEntries.length}</p>
           </div>
         </article>
+        <article className="premium-panel p-4">
+          <h2 className="text-lg font-medium">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
+          <p className="mt-1 text-sm text-secondary">
+            {tr(
+              "knowledge.reviewEntriesDescription",
+              "Review, edit, activate/deactivate, and clean learned entries before client-facing usage."
+            )}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={tr("common.search", "Search")}
+              className="h-9 w-44"
+            />
+            <select
+              value={categoryFilter}
+              onChange={(event) =>
+                setCategoryFilter(event.target.value as "all" | BrandKnowledgeEntry["category"])
+              }
+              className="h-9 rounded-md border border-border/70 bg-elevated/30 px-2 text-xs"
+            >
+              <option value="all">{tr("common.all", "All")}</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-3 space-y-2">
+            {loading && <p className="text-xs text-muted">{tr("common.loading", "Loading...")}</p>}
+            {!loading && !filteredEntries.length && (
+              <p className="text-xs text-muted">{tr("common.noData", "No data yet.")}</p>
+            )}
+            {filteredEntries.slice(0, 8).map((entry) => (
+              <article key={entry.id} className="rounded-xl border border-border/70 bg-elevated/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">{entry.title}</p>
+                  <div className="flex items-center gap-1">
+                    <Badge>{entry.category}</Badge>
+                    <Badge variant={entry.isActive ? "accent" : "default"}>
+                      {entry.isActive ? tr("common.active", "Active") : tr("common.inactive", "Inactive")}
+                    </Badge>
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-secondary">{entry.content}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={() => onEdit(entry)}>
+                    {tr("common.edit", "Edit")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void onToggleActive(entry)}>
+                    {entry.isActive ? tr("common.deactivate", "Deactivate") : tr("common.activate", "Activate")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void onDelete(entry)}>
+                    {tr("common.delete", "Delete")}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </article>
+      </section>
+      )}
 
+      {activeFlowStep === "test" && (
+      <section className="grid gap-4 xl:grid-cols-1">
         <article className="premium-panel p-4">
           <h2 className="text-lg font-medium">
             {tr("knowledge.brandChatTester", "Brand chat tester")}
@@ -667,7 +740,9 @@ export default function KnowledgePage() {
           </div>
         </article>
       </section>
+      )}
 
+      {activeFlowStep === "learn" && (
       <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
         <article className="premium-panel p-4">
           <h2 className="text-lg font-medium">
@@ -829,6 +904,7 @@ export default function KnowledgePage() {
           </div>
         </article>
       </section>
+      )}
       {popupOpen && (
         <div className="fixed inset-0 z-[120] bg-black/30 p-4">
           <div className="ml-auto mt-auto flex h-[70vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
