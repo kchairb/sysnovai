@@ -8,6 +8,7 @@ import { createWorkspaceProduct, listWorkspaceProducts } from "@/lib/server/prod
 
 export type BrandBootstrapInput = {
   workspaceId: string;
+  brandId?: string;
   brandName: string;
   websiteUrl?: string;
   instagram?: string;
@@ -37,6 +38,7 @@ export async function bootstrapBrandWorkspace(input: BrandBootstrapInput) {
 
   const profile = await upsertBrandProfile({
     workspaceExternalId: input.workspaceId,
+    brandId: input.brandId,
     brandName: input.brandName,
     websiteUrl: input.websiteUrl,
     instagram: input.instagram,
@@ -46,11 +48,13 @@ export async function bootstrapBrandWorkspace(input: BrandBootstrapInput) {
 
   const existingEntries = await listBrandKnowledgeEntries({
     workspaceId: input.workspaceId,
+    brandId: input.brandId,
     includeInactive: true,
     limit: 500
   }).catch(() => []);
   const existingProducts = await listWorkspaceProducts({
     workspaceId: input.workspaceId,
+    brandId: input.brandId,
     includeInactive: true,
     limit: 500
   }).catch(() => []);
@@ -130,6 +134,7 @@ export async function bootstrapBrandWorkspace(input: BrandBootstrapInput) {
     if (!existing) {
       await createBrandKnowledgeEntry({
         workspaceId: input.workspaceId,
+        brandId: input.brandId,
         category: seed.category,
         title: seed.title,
         content: seed.content,
@@ -141,6 +146,7 @@ export async function bootstrapBrandWorkspace(input: BrandBootstrapInput) {
     await updateBrandKnowledgeEntry({
       id: existing.id,
       workspaceId: input.workspaceId,
+      brandId: input.brandId,
       content: seed.content,
       tags: seed.tags,
       isActive: true
@@ -166,6 +172,7 @@ export async function bootstrapBrandWorkspace(input: BrandBootstrapInput) {
     }
     await createWorkspaceProduct({
       workspaceId: input.workspaceId,
+      brandId: input.brandId,
       name: productName,
       category: "catalog",
       description: `Seeded from brand starter kit for ${input.brandName}`,

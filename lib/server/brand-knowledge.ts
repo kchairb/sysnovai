@@ -8,6 +8,7 @@ export type BrandKnowledgeCategory = "faq" | "policy" | "product" | "document" |
 export type BrandKnowledgeEntryRecord = {
   id: string;
   workspaceId: string;
+  brandId?: string;
   category: BrandKnowledgeCategory;
   title: string;
   content: string;
@@ -44,6 +45,7 @@ function mapRow(
   row: {
     id: string;
     workspaceId: string;
+    brandId: string | null;
     category: string;
     title: string;
     content: string;
@@ -57,6 +59,7 @@ function mapRow(
   return {
     id: row.id,
     workspaceId: row.workspaceId,
+    brandId: row.brandId ?? undefined,
     category: row.category as BrandKnowledgeCategory,
     title: row.title,
     content: row.content,
@@ -70,6 +73,7 @@ function mapRow(
 
 export async function listBrandKnowledgeEntries(input: {
   workspaceId: string;
+  brandId?: string;
   includeInactive?: boolean;
   category?: string;
   search?: string;
@@ -84,6 +88,7 @@ export async function listBrandKnowledgeEntries(input: {
     const rows = await prisma.brandKnowledgeEntry.findMany({
       where: {
         workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {}),
         ...(input.includeInactive ? {} : { isActive: true }),
         ...(category ? { category } : {}),
         ...(search
@@ -105,6 +110,7 @@ export async function listBrandKnowledgeEntries(input: {
   const store = global.__sysnovaBrandKnowledge ?? [];
   return store
     .filter((entry) => entry.workspaceId === input.workspaceId)
+    .filter((entry) => (input.brandId ? entry.brandId === input.brandId : true))
     .filter((entry) => (input.includeInactive ? true : entry.isActive))
     .filter((entry) => (category ? entry.category === category : true))
     .filter((entry) =>
@@ -115,6 +121,7 @@ export async function listBrandKnowledgeEntries(input: {
 
 export async function createBrandKnowledgeEntry(input: {
   workspaceId: string;
+  brandId?: string;
   category: string;
   title: string;
   content: string;
@@ -149,6 +156,7 @@ export async function createBrandKnowledgeEntry(input: {
     const row = await prisma.brandKnowledgeEntry.create({
       data: {
         workspaceId: workspace.id,
+        brandId: input.brandId?.trim() || null,
         category,
         title,
         content,
@@ -167,6 +175,7 @@ export async function createBrandKnowledgeEntry(input: {
   const entry: BrandKnowledgeEntryRecord = {
     id: `local-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     workspaceId: input.workspaceId,
+    brandId: input.brandId?.trim() || undefined,
     category,
     title,
     content,
@@ -183,6 +192,7 @@ export async function createBrandKnowledgeEntry(input: {
 
 export async function upsertIngestedBrandKnowledgeEntry(input: {
   workspaceId: string;
+  brandId?: string;
   category: string;
   title: string;
   content: string;
@@ -212,12 +222,13 @@ export async function upsertIngestedBrandKnowledgeEntry(input: {
       }
     });
     const existing = await prisma.brandKnowledgeEntry.findFirst({
-      where: { workspaceId: workspace.id, sourceUrl }
+      where: { workspaceId: workspace.id, brandId: input.brandId?.trim() || null, sourceUrl }
     });
     if (!existing) {
       const created = await prisma.brandKnowledgeEntry.create({
         data: {
           workspaceId: workspace.id,
+          brandId: input.brandId?.trim() || null,
           category,
           title,
           content,
@@ -248,6 +259,7 @@ export async function upsertIngestedBrandKnowledgeEntry(input: {
 
   const entry = await createBrandKnowledgeEntry({
     workspaceId: input.workspaceId,
+    brandId: input.brandId,
     category,
     title,
     content,
@@ -261,6 +273,7 @@ export async function upsertIngestedBrandKnowledgeEntry(input: {
 export async function updateBrandKnowledgeEntry(input: {
   id: string;
   workspaceId: string;
+  brandId?: string;
   category?: string;
   title?: string;
   content?: string;
@@ -270,7 +283,11 @@ export async function updateBrandKnowledgeEntry(input: {
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
     const existing = await prisma.brandKnowledgeEntry.findFirst({
-      where: { id: input.id, workspace: { externalId: input.workspaceId } }
+      where: {
+        id: input.id,
+        workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {})
+      }
     });
     if (!existing) {
       throw new Error("Entry not found.");
@@ -303,11 +320,15 @@ export async function updateBrandKnowledgeEntry(input: {
   return target;
 }
 
-export async function deleteBrandKnowledgeEntry(input: { id: string; workspaceId: string }) {
+export async function deleteBrandKnowledgeEntry(input: { id: string; workspaceId: string; brandId?: string }) {
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
     const existing = await prisma.brandKnowledgeEntry.findFirst({
-      where: { id: input.id, workspace: { externalId: input.workspaceId } }
+      where: {
+        id: input.id,
+        workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {})
+      }
     });
     if (!existing) {
       throw new Error("Entry not found.");
@@ -319,11 +340,16 @@ export async function deleteBrandKnowledgeEntry(input: { id: string; workspaceId
   ensurePersistentStorageConfigured();
   const store = global.__sysnovaBrandKnowledge ?? [];
   global.__sysnovaBrandKnowledge = store.filter(
-    (entry) => !(entry.id === input.id && entry.workspaceId === input.workspaceId)
+    (entry) =>
+      !(
+        entry.id === input.id &&
+        entry.workspaceId === input.workspaceId &&
+        (input.brandId ? entry.brandId === input.brandId : true)
+      )
   );
 }
 
-export async function dedupeBrandKnowledgeEntries(input: { workspaceId: string }) {
+export async function dedupeBrandKnowledgeEntries(input: { workspaceId: string; brandId?: string }) {
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
     const workspace = await prisma.workspace.findUnique({
@@ -335,7 +361,7 @@ export async function dedupeBrandKnowledgeEntries(input: { workspaceId: string }
     }
 
     const rows = await prisma.brandKnowledgeEntry.findMany({
-      where: { workspaceId: workspace.id },
+      where: { workspaceId: workspace.id, ...(input.brandId ? { brandId: input.brandId } : {}) },
       orderBy: { updatedAt: "desc" },
       select: {
         id: true,
@@ -361,7 +387,7 @@ export async function dedupeBrandKnowledgeEntries(input: { workspaceId: string }
 
     if (duplicateIds.length > 0) {
       await prisma.brandKnowledgeEntry.deleteMany({
-        where: { workspaceId: workspace.id, id: { in: duplicateIds } }
+        where: { workspaceId: workspace.id, ...(input.brandId ? { brandId: input.brandId } : {}), id: { in: duplicateIds } }
       });
     }
     return {
@@ -372,7 +398,9 @@ export async function dedupeBrandKnowledgeEntries(input: { workspaceId: string }
 
   ensurePersistentStorageConfigured();
   const store = global.__sysnovaBrandKnowledge ?? [];
-  const workspaceEntries = store.filter((entry) => entry.workspaceId === input.workspaceId);
+  const workspaceEntries = store.filter(
+    (entry) => entry.workspaceId === input.workspaceId && (input.brandId ? entry.brandId === input.brandId : true)
+  );
   const seen = new Set<string>();
   const duplicateIds = new Set<string>();
   for (const entry of workspaceEntries) {

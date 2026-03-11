@@ -9,6 +9,7 @@ import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type CreateBody = {
   workspaceId?: string;
+  brandId?: string;
   category?: string;
   title?: string;
   content?: string;
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
+    const brandId = searchParams.get("brandId")?.trim() || undefined;
     const category = searchParams.get("category")?.trim() || undefined;
     const search = searchParams.get("search")?.trim() || undefined;
     const includeInactive = searchParams.get("includeInactive") === "1";
@@ -41,6 +43,7 @@ export async function GET(request: Request) {
 
     const entries = await listBrandKnowledgeEntries({
       workspaceId,
+      brandId,
       category,
       search,
       includeInactive,
@@ -68,6 +71,7 @@ export async function POST(request: Request) {
 
     const entry = await createBrandKnowledgeEntry({
       workspaceId,
+      brandId: body.brandId?.trim() || undefined,
       category: body.category ?? "brand",
       title: body.title ?? "",
       content: body.content ?? "",

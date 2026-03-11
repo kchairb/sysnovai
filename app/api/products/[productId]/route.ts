@@ -9,6 +9,7 @@ import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type UpdateBody = {
   workspaceId?: string;
+  brandId?: string;
   name?: string;
   category?: string | null;
   description?: string | null;
@@ -32,6 +33,7 @@ export async function PATCH(
     const { productId } = await context.params;
     const body = (await request.json().catch(() => ({}))) as UpdateBody;
     const workspaceId = body.workspaceId?.trim() || "workspace-default";
+    const brandId = body.brandId?.trim() || undefined;
     if (hasDatabaseUrl() && user) {
       await ensureWorkspaceForRequest(user, workspaceId);
     }
@@ -39,6 +41,7 @@ export async function PATCH(
     const product = await updateWorkspaceProduct({
       id: productId,
       workspaceId,
+      brandId,
       name: body.name,
       category: body.category,
       description: body.description,
@@ -68,11 +71,12 @@ export async function DELETE(
     const { productId } = await context.params;
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
+    const brandId = searchParams.get("brandId")?.trim() || undefined;
     if (hasDatabaseUrl() && user) {
       await ensureWorkspaceForRequest(user, workspaceId);
     }
 
-    await deleteWorkspaceProduct({ id: productId, workspaceId });
+    await deleteWorkspaceProduct({ id: productId, workspaceId, brandId });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete product.";

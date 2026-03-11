@@ -10,6 +10,7 @@ import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type IngestBody = {
   workspaceId?: string;
+  brandId?: string;
   urls?: string[] | string;
   crawlSite?: boolean;
   maxPagesPerSite?: number;
@@ -18,6 +19,7 @@ type IngestBody = {
 
 async function resolveCrawlStrategy(input: {
   workspaceId: string;
+  brandId?: string;
   requested?: IngestBody["crawlStrategy"];
 }) {
   if (input.requested === "products-first" || input.requested === "support-first" || input.requested === "balanced") {
@@ -27,11 +29,13 @@ async function resolveCrawlStrategy(input: {
   const [knowledgeEntries, products] = await Promise.all([
     listBrandKnowledgeEntries({
       workspaceId: input.workspaceId,
+      brandId: input.brandId,
       includeInactive: false,
       limit: 500
     }).catch(() => []),
     listWorkspaceProducts({
       workspaceId: input.workspaceId,
+      brandId: input.brandId,
       includeInactive: false,
       limit: 500
     }).catch(() => [])
@@ -72,6 +76,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => ({}))) as IngestBody;
     const workspaceId = body.workspaceId?.trim() || "workspace-default";
+    const brandId = body.brandId?.trim() || "brand-default";
     if (hasDatabaseUrl() && user) {
       await ensureWorkspaceForRequest(user, workspaceId);
     }
@@ -83,11 +88,13 @@ export async function POST(request: Request) {
 
     const strategyUsed = await resolveCrawlStrategy({
       workspaceId,
+      brandId,
       requested: body.crawlStrategy
     });
 
     const results = await ingestBrandUrls({
       workspaceId,
+      brandId,
       urls,
       crawlSite: Boolean(body.crawlSite),
       maxPagesPerSite: Number(body.maxPagesPerSite ?? 10),
@@ -116,6 +123,7 @@ export async function POST(request: Request) {
     );
     await recordCrawlRun({
       workspaceId,
+      brandId,
       strategyUsed,
       requestedStrategy: body.crawlStrategy,
       pagesCrawled: totals.pagesCrawled,

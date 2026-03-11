@@ -334,6 +334,7 @@ async function fetchHtml(url: string) {
 
 export async function ingestBrandUrls(input: {
   workspaceId: string;
+  brandId?: string;
   urls: string[];
   crawlSite?: boolean;
   maxPagesPerSite?: number;
@@ -405,6 +406,7 @@ export async function ingestBrandUrls(input: {
 
         const upserted = await upsertIngestedBrandKnowledgeEntry({
           workspaceId: input.workspaceId,
+          brandId: input.brandId,
           category,
           title: pageTitle.slice(0, 160),
           content,
@@ -448,6 +450,7 @@ export async function ingestBrandUrls(input: {
             .slice(0, 900);
           const upsertedProduct = await upsertIngestedWorkspaceProduct({
             workspaceId: input.workspaceId,
+            brandId: input.brandId,
             name: productName || currentParsed.hostname,
             category: "catalog",
             description: shortDescription,

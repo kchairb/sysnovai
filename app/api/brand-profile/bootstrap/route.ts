@@ -6,6 +6,7 @@ import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type BootstrapBody = {
   workspaceId?: string;
+  brandId?: string;
   brandName?: string;
   websiteUrl?: string;
   instagram?: string;
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     const brandName = body.brandName?.trim() || "My Brand";
     const result = await bootstrapBrandWorkspace({
       workspaceId,
+      brandId: body.brandId?.trim() || "brand-default",
       brandName,
       websiteUrl: body.websiteUrl,
       instagram: body.instagram,

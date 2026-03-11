@@ -1,22 +1,12 @@
 import { NextResponse } from "next/server";
 import { authEnabled, getAuthenticatedUserFromRequest } from "@/lib/server/auth";
+import { createBrandProfile, listBrandProfiles } from "@/lib/server/brand-profile";
 import { hasDatabaseUrl } from "@/lib/server/db";
-import {
-  createWorkspaceProduct,
-  listWorkspaceProducts
-} from "@/lib/server/product-store";
 import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type CreateBody = {
   workspaceId?: string;
-  brandId?: string;
-  name?: string;
-  category?: string;
-  description?: string;
-  price?: string;
-  imageUrl?: string;
-  sourceUrl?: string;
-  tags?: unknown;
+  brandName?: string;
 };
 
 export async function GET(request: Request) {
@@ -27,15 +17,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
-
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
-    const brandId = searchParams.get("brandId")?.trim() || undefined;
-    const search = searchParams.get("search")?.trim() || undefined;
-    const sourceDomain = searchParams.get("sourceDomain")?.trim() || undefined;
-    const includeInactive = searchParams.get("includeInactive") === "1";
-    const limit = Number(searchParams.get("limit") ?? 200);
-
     if (hasDatabaseUrl()) {
       const user = await getAuthenticatedUserFromRequest(request);
       if (!user) {
@@ -43,21 +26,10 @@ export async function GET(request: Request) {
       }
       await ensureWorkspaceForRequest(user, workspaceId);
     }
-
-    const data = await listWorkspaceProducts({
-      workspaceId,
-      brandId,
-      search,
-      sourceDomain,
-      includeInactive,
-      limit
-    });
-    return NextResponse.json({
-      data,
-      total: data.length
-    });
+    const brands = await listBrandProfiles(workspaceId);
+    return NextResponse.json({ brands });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load products.";
+    const message = error instanceof Error ? error.message : "Failed to list brands.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -68,27 +40,16 @@ export async function POST(request: Request) {
     if (authEnabled() && !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const body = (await request.json().catch(() => ({}))) as CreateBody;
     const workspaceId = body.workspaceId?.trim() || "workspace-default";
     if (hasDatabaseUrl() && user) {
       await ensureWorkspaceForRequest(user, workspaceId);
     }
-
-    const product = await createWorkspaceProduct({
-      workspaceId,
-      brandId: body.brandId?.trim() || undefined,
-      name: body.name ?? "",
-      category: body.category,
-      description: body.description,
-      price: body.price,
-      imageUrl: body.imageUrl,
-      sourceUrl: body.sourceUrl,
-      tags: body.tags
-    });
-    return NextResponse.json({ product }, { status: 201 });
+    const brandName = body.brandName?.trim() || "New Brand";
+    const brand = await createBrandProfile({ workspaceExternalId: workspaceId, brandName });
+    return NextResponse.json({ brand }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to create product.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const message = error instanceof Error ? error.message : "Failed to create brand.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

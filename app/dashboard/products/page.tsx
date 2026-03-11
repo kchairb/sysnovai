@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Boxes, ExternalLink } from "lucide-react";
+import {
+  BRAND_EVENT,
+  getSelectedBrandId,
+  setSelectedBrandId
+} from "@/lib/client/brand-selection";
 import { getSelectedWorkspaceId, WORKSPACE_EVENT } from "@/lib/client/workspace-selection";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 type ProductRecord = {
   id: string;
   workspaceId: string;
+  brandId?: string;
   name: string;
   category?: string;
   description?: string;
@@ -27,6 +33,8 @@ type ProductRecord = {
 export default function ProductsPage() {
   const { tr } = useLocale();
   const [workspaceId, setWorkspaceId] = useState("workspace-default");
+  const [brandId, setBrandId] = useState("brand-default");
+  const [brands, setBrands] = useState<Array<{ brandId: string; brandName: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [products, setProducts] = useState<ProductRecord[]>([]);
@@ -50,6 +58,7 @@ export default function ProductsPage() {
     try {
       const params = new URLSearchParams();
       params.set("workspaceId", workspaceId);
+      params.set("brandId", brandId);
       params.set("limit", "300");
       if (search.trim()) params.set("search", search.trim());
       if (sourceDomain !== "all") params.set("sourceDomain", sourceDomain);
@@ -72,18 +81,45 @@ export default function ProductsPage() {
   useEffect(() => {
     const selected = getSelectedWorkspaceId();
     setWorkspaceId(selected);
+    setBrandId(getSelectedBrandId());
     const onWorkspaceChange = (event: Event) => {
       const customEvent = event as CustomEvent<{ workspaceId?: string }>;
       setWorkspaceId(customEvent.detail?.workspaceId ?? getSelectedWorkspaceId());
     };
+    const onBrandChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ brandId?: string }>;
+      setBrandId(customEvent.detail?.brandId ?? getSelectedBrandId());
+    };
     window.addEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
-    return () => window.removeEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
+    window.addEventListener(BRAND_EVENT, onBrandChange as EventListener);
+    return () => {
+      window.removeEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
+      window.removeEventListener(BRAND_EVENT, onBrandChange as EventListener);
+    };
   }, []);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      const response = await fetch(`/api/brands?workspaceId=${encodeURIComponent(workspaceId)}`);
+      if (!response.ok) return;
+      const payload = (await response.json().catch(() => ({}))) as {
+        brands?: Array<{ brandId: string; brandName: string }>;
+      };
+      const list = payload.brands ?? [];
+      setBrands(list);
+      if (list.length && !list.some((item) => item.brandId === brandId)) {
+        const next = list[0].brandId;
+        setBrandId(next);
+        setSelectedBrandId(next);
+      }
+    };
+    void loadBrands();
+  }, [workspaceId, brandId]);
 
   useEffect(() => {
     void loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, sourceDomain]);
+  }, [workspaceId, brandId, sourceDomain]);
 
   const domains = useMemo(() => {
     const set = new Set<string>();
@@ -144,6 +180,7 @@ export default function ProductsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
+          brandId,
           name: form.name,
           category: form.category || null,
           price: form.price || null,
@@ -170,7 +207,7 @@ export default function ProductsPage() {
   const onDelete = async (productId: string) => {
     setReport("");
     const response = await fetch(
-      `/api/products/${productId}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      `/api/products/${productId}?workspaceId=${encodeURIComponent(workspaceId)}&brandId=${encodeURIComponent(brandId)}`,
       { method: "DELETE" }
     );
     const payload = (await response.json().catch(() => ({}))) as { error?: string };
@@ -215,9 +252,11 @@ export default function ProductsPage() {
         </article>
         <article className="premium-panel p-4">
           <p className="text-xs uppercase tracking-wide text-muted">
-            {tr("products.workspace", "Workspace")}
+            {tr("products.workspace", "Workspace / Brand")}
           </p>
-          <p className="mt-1 truncate text-sm font-medium">{workspaceId}</p>
+          <p className="mt-1 truncate text-sm font-medium">
+            {workspaceId} / {brands.find((item) => item.brandId === brandId)?.brandName ?? brandId}
+          </p>
         </article>
       </section>
 
@@ -228,6 +267,20 @@ export default function ProductsPage() {
             <Badge>{tr("products.autoIngested", "Auto-filled by crawler")}</Badge>
           </div>
           <div className="mb-3 flex flex-wrap gap-2">
+            <select
+              value={brandId}
+              onChange={(event) => {
+                setBrandId(event.target.value);
+                setSelectedBrandId(event.target.value);
+              }}
+              className="h-9 rounded-md border border-border/70 bg-elevated/30 px-2 text-xs"
+            >
+              {brands.map((brand) => (
+                <option key={brand.brandId} value={brand.brandId}>
+                  {brand.brandName}
+                </option>
+              ))}
+            </select>
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}

@@ -6,6 +6,7 @@ import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type UpdateBody = {
   workspaceId?: string;
+  brandId?: string;
   brandName?: string;
   websiteUrl?: string;
   instagram?: string;
@@ -21,12 +22,13 @@ export async function GET(request: Request) {
     }
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
+    const brandId = searchParams.get("brandId")?.trim() || undefined;
     if (hasDatabaseUrl()) {
       const user = await getAuthenticatedUserFromRequest(request);
       if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       await ensureWorkspaceForRequest(user, workspaceId);
     }
-    const profile = await getBrandProfile(workspaceId);
+    const profile = await getBrandProfile(workspaceId, brandId);
     return NextResponse.json({ profile });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load brand profile.";
@@ -47,6 +49,7 @@ export async function PUT(request: Request) {
     }
     const profile = await upsertBrandProfile({
       workspaceExternalId: workspaceId,
+      brandId: body.brandId,
       brandName: body.brandName,
       websiteUrl: body.websiteUrl,
       instagram: body.instagram,

@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
+import {
+  BRAND_EVENT,
+  getSelectedBrandId,
+  setSelectedBrandId
+} from "@/lib/client/brand-selection";
 import { getSelectedWorkspaceId, WORKSPACE_EVENT } from "@/lib/client/workspace-selection";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +26,7 @@ type BrandKnowledgeEntry = {
 };
 
 type BrandProfile = {
+  brandId: string;
   workspaceId: string;
   brandName: string;
   websiteUrl: string;
@@ -35,6 +41,9 @@ const categories: BrandKnowledgeEntry["category"][] = ["brand", "faq", "policy",
 export default function KnowledgePage() {
   const { tr } = useLocale();
   const [workspaceId, setWorkspaceId] = useState("workspace-default");
+  const [brandId, setBrandId] = useState("brand-default");
+  const [brands, setBrands] = useState<Array<{ brandId: string; brandName: string }>>([]);
+  const [brandNameDraft, setBrandNameDraft] = useState("");
   const [entries, setEntries] = useState<BrandKnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -92,6 +101,7 @@ export default function KnowledgePage() {
   const [bootstrapping, setBootstrapping] = useState(false);
   const [profileReport, setProfileReport] = useState("");
   const [brandProfile, setBrandProfile] = useState<BrandProfile>({
+    brandId: "brand-default",
     workspaceId: "workspace-default",
     brandName: "My Brand",
     websiteUrl: "",
@@ -128,7 +138,7 @@ export default function KnowledgePage() {
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/brand-knowledge?workspaceId=${encodeURIComponent(workspaceId)}&includeInactive=1&limit=300`
+        `/api/brand-knowledge?workspaceId=${encodeURIComponent(workspaceId)}&brandId=${encodeURIComponent(brandId)}&includeInactive=1&limit=300`
       );
       if (!response.ok) return;
       const payload = (await response.json()) as { entries?: BrandKnowledgeEntry[] };
@@ -139,7 +149,9 @@ export default function KnowledgePage() {
   };
 
   const loadBrandProfile = async () => {
-    const response = await fetch(`/api/brand-profile?workspaceId=${encodeURIComponent(workspaceId)}`);
+    const response = await fetch(
+      `/api/brand-profile?workspaceId=${encodeURIComponent(workspaceId)}&brandId=${encodeURIComponent(brandId)}`
+    );
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       setProfileReport(payload.error ?? tr("settings.loadFailed", "Failed to load settings."));
@@ -153,9 +165,24 @@ export default function KnowledgePage() {
     }
   };
 
+  const loadBrands = async () => {
+    const response = await fetch(`/api/brands?workspaceId=${encodeURIComponent(workspaceId)}`);
+    if (!response.ok) return;
+    const payload = (await response.json().catch(() => ({}))) as {
+      brands?: Array<{ brandId: string; brandName: string }>;
+    };
+    const next = payload.brands ?? [];
+    setBrands(next);
+    if (next.length && !next.some((item) => item.brandId === brandId)) {
+      const fallback = next[0].brandId;
+      setBrandId(fallback);
+      setSelectedBrandId(fallback);
+    }
+  };
+
   const loadCrawlHistory = async () => {
     const response = await fetch(
-      `/api/brand-knowledge/ingest/history?workspaceId=${encodeURIComponent(workspaceId)}&limit=10`
+      `/api/brand-knowledge/ingest/history?workspaceId=${encodeURIComponent(workspaceId)}&brandId=${encodeURIComponent(brandId)}&limit=10`
     );
     if (!response.ok) {
       return;
@@ -182,20 +209,34 @@ export default function KnowledgePage() {
   useEffect(() => {
     const selected = getSelectedWorkspaceId();
     setWorkspaceId(selected);
+    setBrandId(getSelectedBrandId());
     const onWorkspaceChange = (event: Event) => {
       const customEvent = event as CustomEvent<{ workspaceId?: string }>;
       setWorkspaceId(customEvent.detail?.workspaceId ?? getSelectedWorkspaceId());
     };
+    const onBrandChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ brandId?: string }>;
+      setBrandId(customEvent.detail?.brandId ?? getSelectedBrandId());
+    };
     window.addEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
-    return () => window.removeEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
+    window.addEventListener(BRAND_EVENT, onBrandChange as EventListener);
+    return () => {
+      window.removeEventListener(WORKSPACE_EVENT, onWorkspaceChange as EventListener);
+      window.removeEventListener(BRAND_EVENT, onBrandChange as EventListener);
+    };
   }, []);
+
+  useEffect(() => {
+    void loadBrands();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
 
   useEffect(() => {
     void loadEntries();
     void loadBrandProfile();
     void loadCrawlHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId]);
+  }, [workspaceId, brandId]);
 
   const filteredEntries = useMemo(
     () =>
@@ -262,6 +303,7 @@ export default function KnowledgePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             workspaceId,
+            brandId,
             category: form.category,
             title: form.title,
             content: form.content,
@@ -274,6 +316,7 @@ export default function KnowledgePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             workspaceId,
+            brandId,
             category: form.category,
             title: form.title,
             content: form.content,
@@ -305,6 +348,7 @@ export default function KnowledgePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         workspaceId,
+        brandId,
         isActive: !entry.isActive
       })
     });
@@ -313,7 +357,7 @@ export default function KnowledgePage() {
 
   const onDelete = async (entry: BrandKnowledgeEntry) => {
     await fetch(
-      `/api/brand-knowledge/${entry.id}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      `/api/brand-knowledge/${entry.id}?workspaceId=${encodeURIComponent(workspaceId)}&brandId=${encodeURIComponent(brandId)}`,
       { method: "DELETE" }
     );
     if (editingId === entry.id) {
@@ -334,6 +378,7 @@ export default function KnowledgePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
+          brandId,
           urls: sourceUrls,
           crawlSite,
           maxPagesPerSite,
@@ -406,7 +451,7 @@ export default function KnowledgePage() {
       const response = await fetch("/api/brand-knowledge/dedupe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId })
+        body: JSON.stringify({ workspaceId, brandId })
       });
       const payload = (await response.json().catch(() => ({}))) as {
         removed?: number;
@@ -443,6 +488,7 @@ export default function KnowledgePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
+          brandId,
           brandName: brandProfile.brandName,
           websiteUrl: brandProfile.websiteUrl,
           instagram: brandProfile.instagram,
@@ -478,6 +524,7 @@ export default function KnowledgePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
+          brandId,
           brandName: brandProfile.brandName,
           websiteUrl: brandProfile.websiteUrl,
           instagram: brandProfile.instagram,
@@ -711,6 +758,53 @@ export default function KnowledgePage() {
             "Create your brand profile once. Crawling and chatbot testing will use this context automatically."
           )}
         </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <select
+            value={brandId}
+            onChange={(event) => {
+              setBrandId(event.target.value);
+              setSelectedBrandId(event.target.value);
+            }}
+            className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
+          >
+            {brands.map((brand) => (
+              <option key={brand.brandId} value={brand.brandId}>
+                {brand.brandName}
+              </option>
+            ))}
+          </select>
+          <Input
+            value={brandNameDraft}
+            onChange={(event) => setBrandNameDraft(event.target.value)}
+            placeholder={tr("knowledge.newBrand", "New brand name")}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              if (!brandNameDraft.trim()) return;
+              const response = await fetch("/api/brands", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ workspaceId, brandName: brandNameDraft.trim() })
+              });
+              const payload = (await response.json().catch(() => ({}))) as {
+                brand?: { brandId: string; brandName: string };
+                error?: string;
+              };
+              if (!response.ok || !payload.brand) {
+                setProfileReport(payload.error ?? tr("knowledge.createBrandFailed", "Failed to create brand."));
+                return;
+              }
+              setBrandNameDraft("");
+              await loadBrands();
+              setBrandId(payload.brand.brandId);
+              setSelectedBrandId(payload.brand.brandId);
+            }}
+          >
+            {tr("knowledge.createBrand", "Create brand")}
+          </Button>
+        </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Input
             value={brandProfile.brandName}

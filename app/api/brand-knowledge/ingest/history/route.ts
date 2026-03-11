@@ -15,6 +15,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
+    const brandId = searchParams.get("brandId")?.trim() || "brand-default";
     const limit = Number(searchParams.get("limit") ?? 10);
 
     if (hasDatabaseUrl()) {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
       await ensureWorkspaceForRequest(user, workspaceId);
     }
 
-    const runs = await listCrawlRuns({ workspaceId, limit });
+    const runs = await listCrawlRuns({ workspaceId, brandId, limit });
     return NextResponse.json({ runs });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load crawl history.";

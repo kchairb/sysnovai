@@ -6,6 +6,7 @@ import { ensurePersistentStorageConfigured } from "@/lib/server/storage-mode";
 export type ProductRecord = {
   id: string;
   workspaceId: string;
+  brandId?: string;
   name: string;
   category?: string;
   description?: string;
@@ -35,6 +36,7 @@ function normalizeTags(input: unknown): string[] {
 function mapRow(row: {
   id: string;
   workspace: { externalId: string };
+  brandId: string | null;
   name: string;
   category: string | null;
   description: string | null;
@@ -49,6 +51,7 @@ function mapRow(row: {
   return {
     id: row.id,
     workspaceId: row.workspace.externalId,
+    brandId: row.brandId ?? undefined,
     name: row.name,
     category: row.category ?? undefined,
     description: row.description ?? undefined,
@@ -77,6 +80,7 @@ async function ensureWorkspaceByExternalId(workspaceExternalId: string) {
 
 export async function listWorkspaceProducts(input: {
   workspaceId: string;
+  brandId?: string;
   includeInactive?: boolean;
   search?: string;
   sourceDomain?: string;
@@ -91,6 +95,7 @@ export async function listWorkspaceProducts(input: {
     const rows = await prisma.product.findMany({
       where: {
         workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {}),
         ...(input.includeInactive ? {} : { isActive: true }),
         ...(search
           ? {
@@ -121,6 +126,7 @@ export async function listWorkspaceProducts(input: {
   const q = search?.toLowerCase() ?? "";
   return store
     .filter((item) => item.workspaceId === input.workspaceId)
+    .filter((item) => (input.brandId ? item.brandId === input.brandId : true))
     .filter((item) => (input.includeInactive ? true : item.isActive))
     .filter((item) =>
       q ? `${item.name}\n${item.description ?? ""}\n${item.tags.join(" ")}`.toLowerCase().includes(q) : true
@@ -131,6 +137,7 @@ export async function listWorkspaceProducts(input: {
 
 export async function createWorkspaceProduct(input: {
   workspaceId: string;
+  brandId?: string;
   name: string;
   category?: string;
   description?: string;
@@ -156,6 +163,7 @@ export async function createWorkspaceProduct(input: {
     const row = await prisma.product.create({
       data: {
         workspaceId: workspace.id,
+        brandId: input.brandId?.trim() || null,
         name,
         category,
         description,
@@ -176,6 +184,7 @@ export async function createWorkspaceProduct(input: {
   const product: ProductRecord = {
     id: `local-product-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     workspaceId: input.workspaceId,
+    brandId: input.brandId?.trim() || undefined,
     name,
     category,
     description,
@@ -194,6 +203,7 @@ export async function createWorkspaceProduct(input: {
 
 export async function upsertIngestedWorkspaceProduct(input: {
   workspaceId: string;
+  brandId?: string;
   name: string;
   category?: string;
   description?: string;
@@ -214,12 +224,13 @@ export async function upsertIngestedWorkspaceProduct(input: {
     const workspace = await ensureWorkspaceByExternalId(input.workspaceId);
     const existing = sourceUrl
       ? await prisma.product.findFirst({
-          where: { workspaceId: workspace.id, sourceUrl },
+          where: { workspaceId: workspace.id, brandId: input.brandId?.trim() || null, sourceUrl },
           include: { workspace: { select: { externalId: true } } }
         })
       : await prisma.product.findFirst({
           where: {
             workspaceId: workspace.id,
+            brandId: input.brandId?.trim() || null,
             OR: [{ name: { equals: name, mode: "insensitive" } }]
           },
           include: { workspace: { select: { externalId: true } } }
@@ -273,6 +284,7 @@ export async function upsertIngestedWorkspaceProduct(input: {
 export async function updateWorkspaceProduct(input: {
   id: string;
   workspaceId: string;
+  brandId?: string;
   name?: string;
   category?: string | null;
   description?: string | null;
@@ -285,7 +297,11 @@ export async function updateWorkspaceProduct(input: {
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
     const existing = await prisma.product.findFirst({
-      where: { id: input.id, workspace: { externalId: input.workspaceId } },
+      where: {
+        id: input.id,
+        workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {})
+      },
       include: { workspace: { select: { externalId: true } } }
     });
     if (!existing) {
@@ -335,7 +351,9 @@ export async function updateWorkspaceProduct(input: {
 
   ensurePersistentStorageConfigured();
   const store = global.__sysnovaProducts ?? [];
-  const item = store.find((row) => row.id === input.id && row.workspaceId === input.workspaceId);
+  const item = store.find(
+    (row) => row.id === input.id && row.workspaceId === input.workspaceId && (input.brandId ? row.brandId === input.brandId : true)
+  );
   if (!item) {
     throw new Error("Product not found.");
   }
@@ -358,11 +376,15 @@ export async function updateWorkspaceProduct(input: {
   return item;
 }
 
-export async function deleteWorkspaceProduct(input: { id: string; workspaceId: string }) {
+export async function deleteWorkspaceProduct(input: { id: string; workspaceId: string; brandId?: string }) {
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
     const existing = await prisma.product.findFirst({
-      where: { id: input.id, workspace: { externalId: input.workspaceId } },
+      where: {
+        id: input.id,
+        workspace: { externalId: input.workspaceId },
+        ...(input.brandId ? { brandId: input.brandId } : {})
+      },
       select: { id: true }
     });
     if (!existing) {
@@ -374,5 +396,12 @@ export async function deleteWorkspaceProduct(input: { id: string; workspaceId: s
 
   ensurePersistentStorageConfigured();
   const store = global.__sysnovaProducts ?? [];
-  global.__sysnovaProducts = store.filter((row) => !(row.id === input.id && row.workspaceId === input.workspaceId));
+  global.__sysnovaProducts = store.filter(
+    (row) =>
+      !(
+        row.id === input.id &&
+        row.workspaceId === input.workspaceId &&
+        (input.brandId ? row.brandId === input.brandId : true)
+      )
+  );
 }

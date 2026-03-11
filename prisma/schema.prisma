@@ -33,7 +33,7 @@ model Workspace {
   chats        WorkspaceChat[]
   settings     WorkspaceSettings?
   invites      InviteToken[]
-  brandProfile BrandProfile?
+  brandProfiles BrandProfile[]
   brandKnowledge BrandKnowledgeEntry[]
   products     Product[]
   crawlRuns    CrawlIngestRun[]
@@ -178,6 +178,7 @@ model RateLimitEvent {
 model BrandKnowledgeEntry {
   id          String    @id @default(cuid())
   workspaceId String
+  brandId     String?
   category    String
   title       String
   content     String
@@ -191,18 +192,24 @@ model BrandKnowledgeEntry {
 
   @@index([workspaceId, isActive, updatedAt(sort: Desc)])
   @@index([workspaceId, category, updatedAt(sort: Desc)])
+  @@index([workspaceId, brandId, updatedAt(sort: Desc)])
 }
 
 model BrandProfile {
   id           String    @id @default(cuid())
-  workspaceId  String    @unique
+  workspaceId  String
+  externalId   String    @default("brand-default")
   brandName    String
   websiteUrl   String?
   instagram    String?
   defaultMode  String    @default("support")
   context      String?
+  isDefault    Boolean   @default(false)
   updatedAt    DateTime  @updatedAt
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, externalId])
+  @@index([workspaceId, isDefault, updatedAt(sort: Desc)])
 }
 
 model TunisianLearningCandidate {
@@ -228,6 +235,7 @@ model TunisianLearningCandidate {
 model Product {
   id            String    @id @default(cuid())
   workspaceId    String
+  brandId       String?
   name          String
   category      String?
   description   String?
@@ -242,11 +250,13 @@ model Product {
 
   @@index([workspaceId, updatedAt(sort: Desc)])
   @@index([workspaceId, isActive, updatedAt(sort: Desc)])
+  @@index([workspaceId, brandId, updatedAt(sort: Desc)])
 }
 
 model CrawlIngestRun {
   id               String    @id @default(cuid())
   workspaceId      String
+  brandId          String?
   strategyUsed     String
   requestedStrategy String?
   pagesCrawled     Int       @default(0)
@@ -261,4 +271,5 @@ model CrawlIngestRun {
   workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([workspaceId, brandId, createdAt(sort: Desc)])
 }
