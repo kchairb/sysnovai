@@ -44,6 +44,89 @@ function extractBodyText(html: string) {
   return sanitizeText(text).slice(0, 3500);
 }
 
+function extractSectionText(html: string, tagName: "header" | "footer" | "nav") {
+  const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "gi");
+  const chunks: string[] = [];
+  let match = regex.exec(html);
+  while (match) {
+    const text = sanitizeText(match[1].replace(/<[^>]+>/g, " "));
+    if (text) {
+      chunks.push(text);
+    }
+    match = regex.exec(html);
+  }
+  return chunks.join(" | ").slice(0, 900);
+}
+
+function extractEmails(text: string) {
+  const matches = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? [];
+  return Array.from(new Set(matches.map((item) => item.toLowerCase()))).slice(0, 8);
+}
+
+function normalizePhone(phone: string) {
+  return phone.replace(/[^\d+]/g, "");
+}
+
+function extractPhoneNumbers(text: string) {
+  const matches =
+    text.match(/(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,4}\d{2,4}/g) ?? [];
+  const cleaned = matches
+    .map((item) => normalizePhone(item))
+    .filter((item) => item.length >= 8 && item.length <= 15);
+  return Array.from(new Set(cleaned)).slice(0, 10);
+}
+
+function extractSocialLinks(html: string, baseUrl: URL) {
+  const links = new Set<string>();
+  const hrefRegex = /href=["']([^"'#]+)["']/gi;
+  let match: RegExpExecArray | null = hrefRegex.exec(html);
+  while (match) {
+    const href = match[1]?.trim();
+    if (!href) {
+      match = hrefRegex.exec(html);
+      continue;
+    }
+    try {
+      const resolved = new URL(href, baseUrl);
+      const host = resolved.hostname.toLowerCase();
+      if (
+        host.includes("instagram.") ||
+        host.includes("facebook.") ||
+        host.includes("tiktok.") ||
+        host.includes("linkedin.") ||
+        host.includes("youtube.") ||
+        host.includes("x.com") ||
+        host.includes("twitter.")
+      ) {
+        links.add(resolved.toString());
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+    match = hrefRegex.exec(html);
+  }
+  return Array.from(links).slice(0, 12);
+}
+
+function collectContactSignals(html: string, url: URL) {
+  const headerText = extractSectionText(html, "header");
+  const footerText = extractSectionText(html, "footer");
+  const navText = extractSectionText(html, "nav");
+  const fullText = extractBodyText(html);
+  const merged = [headerText, footerText, navText, fullText].filter(Boolean).join(" ");
+  const phones = extractPhoneNumbers(merged);
+  const emails = extractEmails(merged);
+  const socials = extractSocialLinks(html, url);
+  return {
+    headerText,
+    footerText,
+    navText,
+    phones,
+    emails,
+    socials
+  };
+}
+
 function extractImageUrl(html: string, baseUrl: URL) {
   const ogImage =
     extractTagContent(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
@@ -116,6 +199,43 @@ function detectCategoryForUrl(url: URL): BrandKnowledgeCategory {
     return "faq";
   }
   return "document";
+}
+
+function linkPriorityScore(rawUrl: string) {
+  const lowered = rawUrl.toLowerCase();
+  let score = 0;
+  if (
+    lowered.includes("/product") ||
+    lowered.includes("/products") ||
+    lowered.includes("/shop") ||
+    lowered.includes("/store") ||
+    lowered.includes("/boutique") ||
+    lowered.includes("/item")
+  ) {
+    score += 100;
+  }
+  if (
+    lowered.includes("/contact") ||
+    lowered.includes("contact-us") ||
+    lowered.includes("/support") ||
+    lowered.includes("/help") ||
+    lowered.includes("/about")
+  ) {
+    score += 70;
+  }
+  if (
+    lowered.includes("/faq") ||
+    lowered.includes("/policy") ||
+    lowered.includes("/return") ||
+    lowered.includes("/terms") ||
+    lowered.includes("/shipping")
+  ) {
+    score += 50;
+  }
+  if (lowered.includes("?page=") || lowered.includes("/page/")) {
+    score -= 8;
+  }
+  return score;
 }
 
 function extractInternalLinks(html: string, baseUrl: URL) {
@@ -241,11 +361,18 @@ export async function ingestBrandUrls(input: {
         const category = detectCategoryForUrl(currentParsed);
         const imageUrl = extractImageUrl(html, currentParsed);
         const priceText = extractPriceText(html);
+        const contacts = collectContactSignals(html, currentParsed);
 
         const content = [
           input.brandName ? `Brand: ${input.brandName}` : "",
           `Source URL: ${currentParsed.toString()}`,
           metaDescription ? `Summary: ${metaDescription}` : "",
+          contacts.headerText ? `Header text: ${contacts.headerText}` : "",
+          contacts.footerText ? `Footer text: ${contacts.footerText}` : "",
+          contacts.navText ? `Navigation text: ${contacts.navText}` : "",
+          contacts.phones.length ? `Phones found: ${contacts.phones.join(", ")}` : "",
+          contacts.emails.length ? `Emails found: ${contacts.emails.join(", ")}` : "",
+          contacts.socials.length ? `Social links: ${contacts.socials.join(", ")}` : "",
           bodyText ? `Extracted text: ${bodyText}` : ""
         ]
           .filter(Boolean)
@@ -257,7 +384,16 @@ export async function ingestBrandUrls(input: {
           title: pageTitle.slice(0, 160),
           content,
           sourceUrl: normalizeCrawlUrl(currentParsed),
-          tags: [currentParsed.hostname, category, "auto-ingest", "crawl", input.brandName || "brand"]
+          tags: [
+            currentParsed.hostname,
+            category,
+            "auto-ingest",
+            "crawl",
+            contacts.phones.length ? "has-phone" : "",
+            contacts.emails.length ? "has-email" : "",
+            contacts.socials.length ? "has-social" : "",
+            input.brandName || "brand"
+          ].filter(Boolean)
         });
         if (upserted.action === "created") {
           entriesCreated += 1;
@@ -276,7 +412,15 @@ export async function ingestBrandUrls(input: {
 
         if (category === "product") {
           const productName = pageTitle.slice(0, 180);
-          const shortDescription = [metaDescription, bodyText].filter(Boolean).join(" | ").slice(0, 900);
+          const shortDescription = [
+            metaDescription,
+            contacts.phones.length ? `Phones: ${contacts.phones.join(", ")}` : "",
+            contacts.emails.length ? `Emails: ${contacts.emails.join(", ")}` : "",
+            bodyText
+          ]
+            .filter(Boolean)
+            .join(" | ")
+            .slice(0, 900);
           const upsertedProduct = await upsertIngestedWorkspaceProduct({
             workspaceId: input.workspaceId,
             name: productName || currentParsed.hostname,
@@ -285,7 +429,15 @@ export async function ingestBrandUrls(input: {
             price: priceText || undefined,
             imageUrl: imageUrl || undefined,
             sourceUrl: normalizeCrawlUrl(currentParsed),
-            tags: [currentParsed.hostname, "crawl", "auto-product", input.brandName || "brand"]
+            tags: [
+              currentParsed.hostname,
+              "crawl",
+              "auto-product",
+              contacts.phones.length ? "has-phone" : "",
+              contacts.emails.length ? "has-email" : "",
+              contacts.socials.length ? "has-social" : "",
+              input.brandName || "brand"
+            ].filter(Boolean)
           });
           if (upsertedProduct.action === "created") {
             productsCreated += 1;
@@ -296,6 +448,7 @@ export async function ingestBrandUrls(input: {
 
         if (input.crawlSite) {
           const internalLinks = extractInternalLinks(html, currentParsed);
+          internalLinks.sort((a, b) => linkPriorityScore(b) - linkPriorityScore(a));
           for (const link of internalLinks) {
             const normalizedLink = normalizeCrawlUrl(new URL(link));
             if (
@@ -306,6 +459,7 @@ export async function ingestBrandUrls(input: {
               queue.push(normalizedLink);
             }
           }
+          queue.sort((a, b) => linkPriorityScore(b) - linkPriorityScore(a));
         }
       }
 
