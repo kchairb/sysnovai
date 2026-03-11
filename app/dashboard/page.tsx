@@ -1,13 +1,16 @@
 import { ArrowUpRight, Clock3, Sparkles, ShieldCheck } from "lucide-react";
-import { dashboardStats, recentActivity } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ProviderHealthTrend } from "@/components/dashboard/provider-health-trend";
 import { t } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/i18n-server";
+import { getDashboardHomeData } from "@/lib/server/dashboard-home";
+import { getServerWorkspaceId } from "@/lib/server/workspace-cookie";
 
 export default async function DashboardHomePage() {
   const locale = await getServerLocale();
+  const workspaceId = await getServerWorkspaceId();
+  const { stats, recentActivity } = await getDashboardHomeData(workspaceId);
 
   return (
     <div className="space-y-4">
@@ -46,7 +49,7 @@ export default async function DashboardHomePage() {
               <p className="text-xs uppercase tracking-wide text-muted">
                 {t(locale, "dashboard.modelRouting", "Model routing")}
               </p>
-              <p className="mt-2">{t(locale, "dashboard.modelRoutingValue", "Primary: Gemini · Fallback: Mock")}</p>
+              <p className="mt-2">{t(locale, "dashboard.modelRoutingValue", "Primary + fallback chain configured")}</p>
             </div>
             <div className="elevation-l1 p-3 text-sm text-secondary">
               <p className="text-xs uppercase tracking-wide text-muted">
@@ -62,7 +65,7 @@ export default async function DashboardHomePage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {dashboardStats.map((stat) => (
+        {stats.map((stat) => (
           <StatCard key={stat.label} label={stat.label} value={stat.value} trend={stat.trend} />
         ))}
       </section>

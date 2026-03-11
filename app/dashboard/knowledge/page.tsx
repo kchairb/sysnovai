@@ -55,6 +55,8 @@ export default function KnowledgePage() {
       entriesCreated?: number;
       entriesUpdated?: number;
       entriesSkipped?: number;
+      productsCreated?: number;
+      productsUpdated?: number;
     }>
   >([]);
   const [crawlSite, setCrawlSite] = useState(true);
@@ -287,6 +289,8 @@ export default function KnowledgePage() {
           entriesCreated?: number;
           entriesUpdated?: number;
           entriesSkipped?: number;
+          productsCreated?: number;
+          productsUpdated?: number;
         };
         results?: Array<{
           url: string;
@@ -296,6 +300,8 @@ export default function KnowledgePage() {
           entriesCreated?: number;
           entriesUpdated?: number;
           entriesSkipped?: number;
+          productsCreated?: number;
+          productsUpdated?: number;
         }>;
         error?: string;
       };
@@ -315,6 +321,8 @@ export default function KnowledgePage() {
           "Update"
         )}: ${payload.totals?.entriesUpdated ?? 0} | ${tr("knowledge.skipped", "Skipped")}: ${
           payload.totals?.entriesSkipped ?? 0
+        } | ${tr("products.addProduct", "Products")}: +${payload.totals?.productsCreated ?? 0}/~${
+          payload.totals?.productsUpdated ?? 0
         }${failed.length ? ` | ${failed[0].url}: ${failed[0].error ?? "error"}` : ""}`
       );
       await loadEntries();
@@ -795,7 +803,7 @@ export default function KnowledgePage() {
                   {ingestDetails.map((item) => (
                     <p key={`${item.url}-${item.ok ? "ok" : "err"}`} className="text-xs text-secondary">
                       {item.ok
-                        ? `${item.url} -> pages:${item.pagesCrawled ?? 0}, +${item.entriesCreated ?? 0}, ~${item.entriesUpdated ?? 0}, =${item.entriesSkipped ?? 0}`
+                        ? `${item.url} -> pages:${item.pagesCrawled ?? 0}, entries:+${item.entriesCreated ?? 0}/~${item.entriesUpdated ?? 0}/=${item.entriesSkipped ?? 0}, products:+${item.productsCreated ?? 0}/~${item.productsUpdated ?? 0}`
                         : `${item.url} -> ${item.error ?? "failed"}`}
                     </p>
                   ))}

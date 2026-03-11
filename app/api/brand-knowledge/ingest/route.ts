@@ -57,9 +57,18 @@ export async function POST(request: Request) {
         sum.entriesCreated += row.entriesCreated ?? 0;
         sum.entriesUpdated += row.entriesUpdated ?? 0;
         sum.entriesSkipped += row.entriesSkipped ?? 0;
+        sum.productsCreated += row.productsCreated ?? 0;
+        sum.productsUpdated += row.productsUpdated ?? 0;
         return sum;
       },
-      { pagesCrawled: 0, entriesCreated: 0, entriesUpdated: 0, entriesSkipped: 0 }
+      {
+        pagesCrawled: 0,
+        entriesCreated: 0,
+        entriesUpdated: 0,
+        entriesSkipped: 0,
+        productsCreated: 0,
+        productsUpdated: 0
+      }
     );
     return NextResponse.json({
       ok: true,

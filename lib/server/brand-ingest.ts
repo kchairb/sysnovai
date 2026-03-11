@@ -2,6 +2,7 @@ import {
   type BrandKnowledgeCategory,
   upsertIngestedBrandKnowledgeEntry
 } from "@/lib/server/brand-knowledge";
+import { upsertIngestedWorkspaceProduct } from "@/lib/server/product-store";
 
 type IngestResult = {
   url: string;
@@ -10,6 +11,8 @@ type IngestResult = {
   entriesCreated?: number;
   entriesUpdated?: number;
   entriesSkipped?: number;
+  productsCreated?: number;
+  productsUpdated?: number;
   entryId?: string;
   title?: string;
   category?: BrandKnowledgeCategory;
@@ -39,6 +42,44 @@ function extractBodyText(html: string) {
     .replace(/<style[\s\S]*?<\/style>/gi, " ");
   const text = withoutScripts.replace(/<[^>]+>/g, " ");
   return sanitizeText(text).slice(0, 3500);
+}
+
+function extractImageUrl(html: string, baseUrl: URL) {
+  const ogImage =
+    extractTagContent(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+    extractTagContent(html, /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/i);
+  if (ogImage) {
+    try {
+      return new URL(ogImage, baseUrl).toString();
+    } catch {
+      return ogImage;
+    }
+  }
+
+  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+  if (imgMatch?.[1]) {
+    try {
+      return new URL(imgMatch[1], baseUrl).toString();
+    } catch {
+      return imgMatch[1];
+    }
+  }
+  return "";
+}
+
+function extractPriceText(html: string) {
+  const candidates = [
+    /<meta[^>]+property=["']product:price:amount["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+property=["']og:price:amount["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+itemprop=["']price["'][^>]+content=["']([^"']+)["'][^>]*>/i
+  ];
+  for (const regex of candidates) {
+    const value = extractTagContent(html, regex);
+    if (value) return value;
+  }
+  const text = sanitizeText(html.replace(/<[^>]+>/g, " "));
+  const priceMatch = text.match(/(\d{1,5}(?:[.,]\d{1,2})?\s?(?:tnd|dt|dinar|eur|\$|usd))/i);
+  return priceMatch?.[1] ?? "";
 }
 
 function detectCategory(hostname: string): BrandKnowledgeCategory {
@@ -174,6 +215,8 @@ export async function ingestBrandUrls(input: {
       let entriesCreated = 0;
       let entriesUpdated = 0;
       let entriesSkipped = 0;
+      let productsCreated = 0;
+      let productsUpdated = 0;
       let firstEntry:
         | { id: string; title: string; category: BrandKnowledgeCategory }
         | undefined;
@@ -196,6 +239,8 @@ export async function ingestBrandUrls(input: {
           extractTagContent(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i);
         const bodyText = extractBodyText(html);
         const category = detectCategoryForUrl(currentParsed);
+        const imageUrl = extractImageUrl(html, currentParsed);
+        const priceText = extractPriceText(html);
 
         const content = [
           input.brandName ? `Brand: ${input.brandName}` : "",
@@ -229,6 +274,26 @@ export async function ingestBrandUrls(input: {
           };
         }
 
+        if (category === "product") {
+          const productName = pageTitle.slice(0, 180);
+          const shortDescription = [metaDescription, bodyText].filter(Boolean).join(" | ").slice(0, 900);
+          const upsertedProduct = await upsertIngestedWorkspaceProduct({
+            workspaceId: input.workspaceId,
+            name: productName || currentParsed.hostname,
+            category: "catalog",
+            description: shortDescription,
+            price: priceText || undefined,
+            imageUrl: imageUrl || undefined,
+            sourceUrl: normalizeCrawlUrl(currentParsed),
+            tags: [currentParsed.hostname, "crawl", "auto-product", input.brandName || "brand"]
+          });
+          if (upsertedProduct.action === "created") {
+            productsCreated += 1;
+          } else {
+            productsUpdated += 1;
+          }
+        }
+
         if (input.crawlSite) {
           const internalLinks = extractInternalLinks(html, currentParsed);
           for (const link of internalLinks) {
@@ -251,6 +316,8 @@ export async function ingestBrandUrls(input: {
         entriesCreated,
         entriesUpdated,
         entriesSkipped,
+        productsCreated,
+        productsUpdated,
         entryId: firstEntry?.id,
         title: firstEntry?.title,
         category: firstEntry?.category
