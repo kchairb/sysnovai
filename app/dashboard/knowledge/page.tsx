@@ -99,6 +99,7 @@ export default function KnowledgePage() {
   const [testMeta, setTestMeta] = useState<{ provider?: string; model?: string } | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(false);
+  const [autofilling, setAutofilling] = useState(false);
   const [profileReport, setProfileReport] = useState("");
   const [brandProfile, setBrandProfile] = useState<BrandProfile>({
     brandId: "brand-default",
@@ -578,6 +579,79 @@ export default function KnowledgePage() {
     }
   };
 
+  const onAutofillFromWebsite = async () => {
+    const websiteUrl = brandProfile.websiteUrl.trim();
+    if (!websiteUrl) {
+      setProfileReport(tr("knowledge.websiteRequired", "Website URL is required for autofill."));
+      return;
+    }
+    setAutofilling(true);
+    setProfileReport("");
+    try {
+      const response = await fetch("/api/brand-profile/autofill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          websiteUrl,
+          maxPages: 10
+        })
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: {
+          instagram?: string;
+          contactPhone?: string;
+          contactEmail?: string;
+          whatsapp?: string;
+          address?: string;
+          shippingInfo?: string;
+          returnPolicy?: string;
+          paymentMethods?: string;
+          keyProducts?: string[];
+          context?: string;
+          pagesScanned?: number;
+        };
+        error?: string;
+      };
+      if (!response.ok || !payload.data) {
+        throw new Error(payload.error ?? tr("knowledge.autofillFailed", "Failed to auto-fill brand data."));
+      }
+      setBrandProfile((prev) => ({
+        ...prev,
+        instagram: payload.data?.instagram || prev.instagram,
+        context: payload.data?.context || prev.context
+      }));
+      setStarterKit((prev) => ({
+        ...prev,
+        contactPhone: payload.data?.contactPhone || prev.contactPhone,
+        contactEmail: payload.data?.contactEmail || prev.contactEmail,
+        whatsapp: payload.data?.whatsapp || prev.whatsapp,
+        address: payload.data?.address || prev.address,
+        shippingInfo: payload.data?.shippingInfo || prev.shippingInfo,
+        returnPolicy: payload.data?.returnPolicy || prev.returnPolicy,
+        paymentMethods: payload.data?.paymentMethods || prev.paymentMethods,
+        keyProducts:
+          payload.data?.keyProducts?.length
+            ? payload.data.keyProducts.join("\n")
+            : prev.keyProducts
+      }));
+      setProfileReport(
+        `${tr("knowledge.autofillDone", "Auto-filled from website")}: ${payload.data.pagesScanned ?? 0} ${tr(
+          "knowledge.pagesCrawled",
+          "pages crawled"
+        )}.`
+      );
+    } catch (error) {
+      setProfileReport(
+        error instanceof Error
+          ? error.message
+          : tr("knowledge.autofillFailed", "Failed to auto-fill brand data.")
+      );
+    } finally {
+      setAutofilling(false);
+    }
+  };
+
   const onTestBrandAssistant = async () => {
     if (!testPrompt.trim()) return;
     setTesting(true);
@@ -899,6 +973,11 @@ export default function KnowledgePage() {
         <div className="mt-2 flex gap-2">
           <Button size="sm" onClick={() => void onSaveBrandProfile()} disabled={profileSaving}>
             {profileSaving ? tr("common.saving", "Saving...") : tr("common.save", "Save")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void onAutofillFromWebsite()} disabled={autofilling}>
+            {autofilling
+              ? tr("knowledge.autofilling", "Fetching website data...")
+              : tr("knowledge.autofillFromWebsite", "Auto-fill from website")}
           </Button>
           <Button
             size="sm"

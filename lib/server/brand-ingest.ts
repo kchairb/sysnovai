@@ -20,6 +20,21 @@ type IngestResult = {
 };
 
 export type CrawlStrategy = "balanced" | "products-first" | "support-first";
+export type BrandAutofillResult = {
+  brandName?: string;
+  websiteUrl: string;
+  instagram?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  whatsapp?: string;
+  address?: string;
+  shippingInfo?: string;
+  returnPolicy?: string;
+  paymentMethods?: string;
+  keyProducts: string[];
+  context: string;
+  pagesScanned: number;
+};
 
 function sanitizeText(value: string) {
   return value
@@ -330,6 +345,145 @@ async function fetchHtml(url: string) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function pickFirst(values: string[]) {
+  return values.find((item) => item.trim().length > 0);
+}
+
+function findPolicySnippet(text: string, keywords: string[]) {
+  const lower = text.toLowerCase();
+  for (const keyword of keywords) {
+    const index = lower.indexOf(keyword);
+    if (index >= 0) {
+      const start = Math.max(0, index - 80);
+      const end = Math.min(text.length, index + 220);
+      return text.slice(start, end).trim();
+    }
+  }
+  return "";
+}
+
+function extractPaymentMethodsFromText(text: string) {
+  const lower = text.toLowerCase();
+  const methods: string[] = [];
+  if (lower.includes("cash on delivery") || lower.includes("cod")) methods.push("Cash on delivery");
+  if (lower.includes("card") || lower.includes("visa") || lower.includes("mastercard")) methods.push("Card");
+  if (lower.includes("paypal")) methods.push("PayPal");
+  if (lower.includes("bank transfer")) methods.push("Bank transfer");
+  if (lower.includes("d17")) methods.push("D17");
+  return Array.from(new Set(methods));
+}
+
+export async function autoFillBrandFromWebsite(input: {
+  websiteUrl: string;
+  maxPages?: number;
+}): Promise<BrandAutofillResult> {
+  const parsed = new URL(input.websiteUrl);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("Only http/https URLs are supported.");
+  }
+
+  const maxPages = Math.min(Math.max(input.maxPages ?? 8, 1), 20);
+  const queue: string[] = [normalizeCrawlUrl(parsed)];
+  const visited = new Set<string>();
+  const phones = new Set<string>();
+  const emails = new Set<string>();
+  const socials = new Set<string>();
+  const productNames = new Set<string>();
+  const shippingSnippets: string[] = [];
+  const returnSnippets: string[] = [];
+  const paymentSnippets: string[] = [];
+  const addresses: string[] = [];
+  const brandSignals: string[] = [];
+  let pagesScanned = 0;
+
+  while (queue.length && pagesScanned < maxPages) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) continue;
+    visited.add(current);
+
+    const pageUrl = new URL(current);
+    const html = await fetchHtml(current);
+    pagesScanned += 1;
+
+    const title =
+      extractTagContent(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+      extractTagContent(html, /<title[^>]*>([\s\S]*?)<\/title>/i) ||
+      "";
+    const description =
+      extractTagContent(html, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+      extractTagContent(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+      "";
+    const body = extractBodyText(html);
+    const contact = collectContactSignals(html, pageUrl);
+
+    for (const phone of contact.phones) phones.add(phone);
+    for (const email of contact.emails) emails.add(email);
+    for (const social of contact.socials) socials.add(social);
+
+    const pathLower = pageUrl.pathname.toLowerCase();
+    const isProductLike =
+      pathLower.includes("/product") ||
+      pathLower.includes("/products") ||
+      pathLower.includes("/shop") ||
+      pathLower.includes("/store") ||
+      pathLower.includes("/item");
+    if (isProductLike && title) {
+      productNames.add(title.slice(0, 120));
+    }
+
+    const shippingSnippet = findPolicySnippet(body, ["shipping", "delivery", "livraison", "توصيل"]);
+    if (shippingSnippet) shippingSnippets.push(shippingSnippet);
+    const returnSnippet = findPolicySnippet(body, ["return", "refund", "exchange", "retour", "استرجاع"]);
+    if (returnSnippet) returnSnippets.push(returnSnippet);
+    const paymentSnippet = findPolicySnippet(body, ["payment", "paiement", "cash on delivery", "cod", "دفع"]);
+    if (paymentSnippet) paymentSnippets.push(paymentSnippet);
+    if (pathLower.includes("/contact") || pathLower.includes("/about")) {
+      const addressSnippet = findPolicySnippet(body, ["address", "location", "adresse", "tunisie", "تونس"]);
+      if (addressSnippet) addresses.push(addressSnippet);
+    }
+    if (title) brandSignals.push(title);
+    if (description) brandSignals.push(description);
+
+    const links = extractInternalLinks(html, pageUrl);
+    links.sort((a, b) => linkPriorityScore(b, "balanced") - linkPriorityScore(a, "balanced"));
+    for (const link of links) {
+      const normalized = normalizeCrawlUrl(new URL(link));
+      if (!visited.has(normalized) && !queue.includes(normalized) && queue.length < maxPages * 3) {
+        queue.push(normalized);
+      }
+    }
+  }
+
+  const socialList = Array.from(socials);
+  const instagram = socialList.find((item) => item.toLowerCase().includes("instagram"));
+  const paymentMethods = extractPaymentMethodsFromText(paymentSnippets.join(" "));
+  const context = [
+    ...brandSignals.slice(0, 2),
+    shippingSnippets[0] ? `Shipping clue: ${shippingSnippets[0]}` : "",
+    returnSnippets[0] ? `Returns clue: ${returnSnippets[0]}` : "",
+    paymentSnippets[0] ? `Payments clue: ${paymentSnippets[0]}` : "",
+    phones.size ? `Phones found: ${Array.from(phones).slice(0, 3).join(", ")}` : "",
+    emails.size ? `Emails found: ${Array.from(emails).slice(0, 3).join(", ")}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    websiteUrl: parsed.toString(),
+    instagram,
+    contactPhone: pickFirst(Array.from(phones)),
+    contactEmail: pickFirst(Array.from(emails)),
+    whatsapp: pickFirst(Array.from(phones)),
+    address: pickFirst(addresses),
+    shippingInfo: pickFirst(shippingSnippets),
+    returnPolicy: pickFirst(returnSnippets),
+    paymentMethods: paymentMethods.join(", "),
+    keyProducts: Array.from(productNames).slice(0, 20),
+    context,
+    pagesScanned
+  };
 }
 
 export async function ingestBrandUrls(input: {
