@@ -100,6 +100,7 @@ export default function KnowledgePage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+  const [autofillAndBootstrapping, setAutofillAndBootstrapping] = useState(false);
   const [profileReport, setProfileReport] = useState("");
   const [brandProfile, setBrandProfile] = useState<BrandProfile>({
     brandId: "brand-default",
@@ -579,64 +580,65 @@ export default function KnowledgePage() {
     }
   };
 
-  const onAutofillFromWebsite = async () => {
+  const fetchAutofillData = async () => {
     const websiteUrl = brandProfile.websiteUrl.trim();
     if (!websiteUrl) {
-      setProfileReport(tr("knowledge.websiteRequired", "Website URL is required for autofill."));
-      return;
+      throw new Error(tr("knowledge.websiteRequired", "Website URL is required for autofill."));
     }
+    const response = await fetch("/api/brand-profile/autofill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workspaceId,
+        websiteUrl,
+        maxPages: 10
+      })
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: {
+        instagram?: string;
+        contactPhone?: string;
+        contactEmail?: string;
+        whatsapp?: string;
+        address?: string;
+        shippingInfo?: string;
+        returnPolicy?: string;
+        paymentMethods?: string;
+        keyProducts?: string[];
+        context?: string;
+        pagesScanned?: number;
+      };
+      error?: string;
+    };
+    if (!response.ok || !payload.data) {
+      throw new Error(payload.error ?? tr("knowledge.autofillFailed", "Failed to auto-fill brand data."));
+    }
+    return payload.data;
+  };
+
+  const onAutofillFromWebsite = async () => {
     setAutofilling(true);
     setProfileReport("");
     try {
-      const response = await fetch("/api/brand-profile/autofill", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspaceId,
-          websiteUrl,
-          maxPages: 10
-        })
-      });
-      const payload = (await response.json().catch(() => ({}))) as {
-        data?: {
-          instagram?: string;
-          contactPhone?: string;
-          contactEmail?: string;
-          whatsapp?: string;
-          address?: string;
-          shippingInfo?: string;
-          returnPolicy?: string;
-          paymentMethods?: string;
-          keyProducts?: string[];
-          context?: string;
-          pagesScanned?: number;
-        };
-        error?: string;
-      };
-      if (!response.ok || !payload.data) {
-        throw new Error(payload.error ?? tr("knowledge.autofillFailed", "Failed to auto-fill brand data."));
-      }
+      const data = await fetchAutofillData();
       setBrandProfile((prev) => ({
         ...prev,
-        instagram: payload.data?.instagram || prev.instagram,
-        context: payload.data?.context || prev.context
+        instagram: data.instagram || prev.instagram,
+        context: data.context || prev.context
       }));
       setStarterKit((prev) => ({
         ...prev,
-        contactPhone: payload.data?.contactPhone || prev.contactPhone,
-        contactEmail: payload.data?.contactEmail || prev.contactEmail,
-        whatsapp: payload.data?.whatsapp || prev.whatsapp,
-        address: payload.data?.address || prev.address,
-        shippingInfo: payload.data?.shippingInfo || prev.shippingInfo,
-        returnPolicy: payload.data?.returnPolicy || prev.returnPolicy,
-        paymentMethods: payload.data?.paymentMethods || prev.paymentMethods,
-        keyProducts:
-          payload.data?.keyProducts?.length
-            ? payload.data.keyProducts.join("\n")
-            : prev.keyProducts
+        contactPhone: data.contactPhone || prev.contactPhone,
+        contactEmail: data.contactEmail || prev.contactEmail,
+        whatsapp: data.whatsapp || prev.whatsapp,
+        address: data.address || prev.address,
+        shippingInfo: data.shippingInfo || prev.shippingInfo,
+        returnPolicy: data.returnPolicy || prev.returnPolicy,
+        paymentMethods: data.paymentMethods || prev.paymentMethods,
+        keyProducts: data.keyProducts?.length ? data.keyProducts.join("\n") : prev.keyProducts
       }));
       setProfileReport(
-        `${tr("knowledge.autofillDone", "Auto-filled from website")}: ${payload.data.pagesScanned ?? 0} ${tr(
+        `${tr("knowledge.autofillDone", "Auto-filled from website")}: ${data.pagesScanned ?? 0} ${tr(
           "knowledge.pagesCrawled",
           "pages crawled"
         )}.`
@@ -649,6 +651,105 @@ export default function KnowledgePage() {
       );
     } finally {
       setAutofilling(false);
+    }
+  };
+
+  const onAutofillAndCreateStarterKit = async () => {
+    if (!brandProfile.brandName.trim()) {
+      setProfileReport(tr("knowledge.brandNameRequired", "Brand name is required."));
+      return;
+    }
+    setAutofillAndBootstrapping(true);
+    setProfileReport("");
+    try {
+      const data = await fetchAutofillData();
+      const mergedInstagram = data.instagram || brandProfile.instagram;
+      const mergedContext = data.context || brandProfile.context;
+      const mergedPhone = data.contactPhone || starterKit.contactPhone;
+      const mergedEmail = data.contactEmail || starterKit.contactEmail;
+      const mergedWhatsapp = data.whatsapp || starterKit.whatsapp;
+      const mergedAddress = data.address || starterKit.address;
+      const mergedShipping = data.shippingInfo || starterKit.shippingInfo;
+      const mergedReturn = data.returnPolicy || starterKit.returnPolicy;
+      const mergedPayments = data.paymentMethods || starterKit.paymentMethods;
+      const mergedProducts = data.keyProducts?.length
+        ? data.keyProducts.join("\n")
+        : starterKit.keyProducts;
+
+      const response = await fetch("/api/brand-profile/bootstrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          brandId,
+          brandName: brandProfile.brandName,
+          websiteUrl: brandProfile.websiteUrl,
+          instagram: mergedInstagram,
+          defaultMode: brandProfile.defaultMode,
+          context: mergedContext,
+          contactPhone: mergedPhone,
+          contactEmail: mergedEmail,
+          whatsapp: mergedWhatsapp,
+          address: mergedAddress,
+          shippingInfo: mergedShipping,
+          returnPolicy: mergedReturn,
+          paymentMethods: mergedPayments,
+          keyProducts: mergedProducts
+        })
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        stats?: {
+          knowledgeCreated?: number;
+          knowledgeUpdated?: number;
+          productsCreated?: number;
+        };
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? tr("knowledge.bootstrapFailed", "Failed to create starter kit."));
+      }
+
+      setBrandProfile((prev) => ({
+        ...prev,
+        instagram: mergedInstagram,
+        context: mergedContext
+      }));
+      setStarterKit((prev) => ({
+        ...prev,
+        contactPhone: mergedPhone,
+        contactEmail: mergedEmail,
+        whatsapp: mergedWhatsapp,
+        address: mergedAddress,
+        shippingInfo: mergedShipping,
+        returnPolicy: mergedReturn,
+        paymentMethods: mergedPayments,
+        keyProducts: mergedProducts
+      }));
+      await loadBrandProfile();
+      await loadEntries();
+      setTestPrompt(
+        `Present ${brandProfile.brandName} briefly and explain how clients can contact support and place an order.`
+      );
+      setActiveFlowStep("test");
+      setProfileReport(
+        `${tr("knowledge.autofillDone", "Auto-filled from website")} + ${tr(
+          "knowledge.bootstrapDone",
+          "Starter kit created"
+        )}: ${tr("common.create", "Create")} ${payload.stats?.knowledgeCreated ?? 0} | ${tr(
+          "common.update",
+          "Update"
+        )} ${payload.stats?.knowledgeUpdated ?? 0} | ${tr("products.addProduct", "Products")} +${
+          payload.stats?.productsCreated ?? 0
+        }`
+      );
+    } catch (error) {
+      setProfileReport(
+        error instanceof Error
+          ? error.message
+          : tr("knowledge.bootstrapFailed", "Failed to create starter kit.")
+      );
+    } finally {
+      setAutofillAndBootstrapping(false);
     }
   };
 
@@ -993,6 +1094,15 @@ export default function KnowledgePage() {
         </div>
         {!!profileReport && <p className="mt-2 text-xs text-muted">{profileReport}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            onClick={() => void onAutofillAndCreateStarterKit()}
+            disabled={autofillAndBootstrapping}
+          >
+            {autofillAndBootstrapping
+              ? tr("knowledge.autofillingAndCreating", "Auto-filling + creating...")
+              : tr("knowledge.autofillAndCreateStarterKit", "Auto-fill + create starter kit")}
+          </Button>
           <Button size="sm" onClick={() => void onCreateBrandStarterKit()} disabled={bootstrapping}>
             {bootstrapping
               ? tr("knowledge.creatingStarterKit", "Creating starter kit...")
