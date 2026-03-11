@@ -2,7 +2,10 @@ import { catalogProducts, knowledgeItems, workspaceFaqs } from "@/lib/mock-data"
 import { type RagRequest, type RetrievedContext } from "@/lib/ai/types";
 import { tunisianLifeKnowledge } from "@/lib/tunisian-life-knowledge";
 import { getWorkspaceContext } from "@/lib/workspace-context";
-import { listBrandKnowledgeEntries } from "@/lib/server/brand-knowledge";
+import {
+  listBrandKnowledgeEntries,
+  type BrandKnowledgeEntryRecord
+} from "@/lib/server/brand-knowledge";
 
 const workspacePolicies = [
   "Returns accepted within 7 days for unopened items.",
@@ -26,12 +29,12 @@ function hasAnyToken(query: string, tokens: string[]) {
 export async function retrieveContext(input: RagRequest): Promise<RetrievedContext> {
   const query = normalize(input.message);
   const workspaceContext = getWorkspaceContext(input.workspaceId);
-  const brandEntries = await listBrandKnowledgeEntries({
+  const brandEntries: BrandKnowledgeEntryRecord[] = await listBrandKnowledgeEntries({
     workspaceId: input.workspaceId,
     includeInactive: false,
     search: query,
     limit: 120
-  }).catch(() => []);
+  }).catch(() => [] as BrandKnowledgeEntryRecord[]);
   const brandFaqs = brandEntries
     .filter((entry) => entry.category === "faq")
     .map((entry) => `${entry.title}: ${entry.content}`);
