@@ -240,6 +240,7 @@ model Product {
   category      String?
   description   String?
   price         String?
+  availability  String?
   imageUrl      String?
   sourceUrl     String?
   tags          Json?

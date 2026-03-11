@@ -14,6 +14,7 @@ type UpdateBody = {
   category?: string | null;
   description?: string | null;
   price?: string | null;
+  availability?: string | null;
   imageUrl?: string | null;
   sourceUrl?: string | null;
   tags?: unknown;
@@ -46,6 +47,7 @@ export async function PATCH(
       category: body.category,
       description: body.description,
       price: body.price,
+      availability: body.availability,
       imageUrl: body.imageUrl,
       sourceUrl: body.sourceUrl,
       tags: body.tags,

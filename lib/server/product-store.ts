@@ -11,6 +11,7 @@ export type ProductRecord = {
   category?: string;
   description?: string;
   price?: string;
+  availability?: string;
   imageUrl?: string;
   sourceUrl?: string;
   tags: string[];
@@ -41,6 +42,7 @@ function mapRow(row: {
   category: string | null;
   description: string | null;
   price: string | null;
+  availability: string | null;
   imageUrl: string | null;
   sourceUrl: string | null;
   tags: Prisma.JsonValue | null;
@@ -56,6 +58,7 @@ function mapRow(row: {
     category: row.category ?? undefined,
     description: row.description ?? undefined,
     price: row.price ?? undefined,
+    availability: row.availability ?? undefined,
     imageUrl: row.imageUrl ?? undefined,
     sourceUrl: row.sourceUrl ?? undefined,
     tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === "string") : [],
@@ -142,6 +145,7 @@ export async function createWorkspaceProduct(input: {
   category?: string;
   description?: string;
   price?: string;
+  availability?: string;
   imageUrl?: string;
   sourceUrl?: string;
   tags?: unknown;
@@ -153,6 +157,7 @@ export async function createWorkspaceProduct(input: {
   const category = input.category?.trim().slice(0, 80) || undefined;
   const description = input.description?.trim().slice(0, 3000) || undefined;
   const price = input.price?.trim().slice(0, 80) || undefined;
+  const availability = input.availability?.trim().slice(0, 80) || undefined;
   const imageUrl = input.imageUrl?.trim().slice(0, 600) || undefined;
   const sourceUrl = input.sourceUrl?.trim().slice(0, 600) || undefined;
   const tags = normalizeTags(input.tags);
@@ -168,6 +173,7 @@ export async function createWorkspaceProduct(input: {
         category,
         description,
         price,
+        availability,
         imageUrl,
         sourceUrl,
         tags: tags as Prisma.InputJsonValue,
@@ -189,6 +195,7 @@ export async function createWorkspaceProduct(input: {
     category,
     description,
     price,
+    availability,
     imageUrl,
     sourceUrl,
     tags,
@@ -208,6 +215,7 @@ export async function upsertIngestedWorkspaceProduct(input: {
   category?: string;
   description?: string;
   price?: string;
+  availability?: string;
   imageUrl?: string;
   sourceUrl?: string;
   tags?: unknown;
@@ -247,6 +255,7 @@ export async function upsertIngestedWorkspaceProduct(input: {
         category: input.category?.trim().slice(0, 80) || undefined,
         description: input.description?.trim().slice(0, 3000) || undefined,
         price: input.price?.trim().slice(0, 80) || undefined,
+        availability: input.availability?.trim().slice(0, 80) || undefined,
         imageUrl: input.imageUrl?.trim().slice(0, 600) || undefined,
         sourceUrl,
         tags: nextTags as Prisma.InputJsonValue,
@@ -273,6 +282,7 @@ export async function upsertIngestedWorkspaceProduct(input: {
   existing.category = input.category?.trim().slice(0, 80) || undefined;
   existing.description = input.description?.trim().slice(0, 3000) || undefined;
   existing.price = input.price?.trim().slice(0, 80) || undefined;
+  existing.availability = input.availability?.trim().slice(0, 80) || undefined;
   existing.imageUrl = input.imageUrl?.trim().slice(0, 600) || undefined;
   existing.sourceUrl = sourceUrl;
   existing.tags = normalizeTags(input.tags);
@@ -289,6 +299,7 @@ export async function updateWorkspaceProduct(input: {
   category?: string | null;
   description?: string | null;
   price?: string | null;
+  availability?: string | null;
   imageUrl?: string | null;
   sourceUrl?: string | null;
   tags?: unknown;
@@ -329,6 +340,12 @@ export async function updateWorkspaceProduct(input: {
             : typeof input.price === "string"
               ? input.price.trim().slice(0, 80) || null
               : undefined,
+        availability:
+          input.availability === null
+            ? null
+            : typeof input.availability === "string"
+              ? input.availability.trim().slice(0, 80) || null
+              : undefined,
         imageUrl:
           input.imageUrl === null
             ? null
@@ -365,6 +382,9 @@ export async function updateWorkspaceProduct(input: {
     item.description = input.description.trim().slice(0, 3000) || undefined;
   if (input.price === null) item.price = undefined;
   else if (typeof input.price === "string") item.price = input.price.trim().slice(0, 80) || undefined;
+  if (input.availability === null) item.availability = undefined;
+  else if (typeof input.availability === "string")
+    item.availability = input.availability.trim().slice(0, 80) || undefined;
   if (input.imageUrl === null) item.imageUrl = undefined;
   else if (typeof input.imageUrl === "string") item.imageUrl = input.imageUrl.trim().slice(0, 600) || undefined;
   if (input.sourceUrl === null) item.sourceUrl = undefined;

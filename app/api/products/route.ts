@@ -14,6 +14,7 @@ type CreateBody = {
   category?: string;
   description?: string;
   price?: string;
+  availability?: string;
   imageUrl?: string;
   sourceUrl?: string;
   tags?: unknown;
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
       category: body.category,
       description: body.description,
       price: body.price,
+      availability: body.availability,
       imageUrl: body.imageUrl,
       sourceUrl: body.sourceUrl,
       tags: body.tags

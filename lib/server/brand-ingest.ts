@@ -32,6 +32,13 @@ export type BrandAutofillResult = {
   returnPolicy?: string;
   paymentMethods?: string;
   keyProducts: string[];
+  products: Array<{
+    name: string;
+    sourceUrl?: string;
+    imageUrl?: string;
+    price?: string;
+    availability?: string;
+  }>;
   context: string;
   pagesScanned: number;
 };
@@ -386,8 +393,19 @@ function normalizeAvailability(value?: string) {
   return "";
 }
 
-function extractProductStructuredData(html: string) {
-  const products: Array<{ name: string; availability?: string }> = [];
+function normalizePrice(value?: string) {
+  if (!value) return "";
+  return sanitizeText(value).replace(/\s+/g, " ").trim();
+}
+
+function extractProductStructuredData(html: string, baseUrl: URL) {
+  const products: Array<{
+    name: string;
+    sourceUrl?: string;
+    imageUrl?: string;
+    price?: string;
+    availability?: string;
+  }> = [];
   const scriptRegex =
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let match = scriptRegex.exec(html);
@@ -418,16 +436,46 @@ function extractProductStructuredData(html: string) {
         const isProduct = typeList.some((item) => item.toLowerCase() === "product");
         if (!isProduct) continue;
         const nameRaw = typeof obj.name === "string" ? obj.name : "";
+        const offers = obj.offers as Record<string, unknown> | Record<string, unknown>[] | undefined;
+        const offersObject = Array.isArray(offers) ? offers[0] : offers;
         const availabilityRaw =
           typeof obj.availability === "string"
             ? obj.availability
-            : typeof (obj.offers as { availability?: unknown } | undefined)?.availability === "string"
-              ? String((obj.offers as { availability?: unknown }).availability)
+            : typeof offersObject?.availability === "string"
+              ? String(offersObject.availability)
               : "";
+        const priceRaw =
+          typeof obj.price === "string"
+            ? obj.price
+            : typeof offersObject?.price === "string" || typeof offersObject?.price === "number"
+              ? String(offersObject.price)
+              : "";
+        const imageRaw =
+          typeof obj.image === "string"
+            ? obj.image
+            : Array.isArray(obj.image) && typeof obj.image[0] === "string"
+              ? String(obj.image[0])
+              : "";
+        const urlRaw = typeof obj.url === "string" ? obj.url : "";
         const name = normalizeProductName(nameRaw);
         if (!name || isLikelyCategoryName(name)) continue;
+        let sourceUrl: string | undefined;
+        let imageUrl: string | undefined;
+        try {
+          sourceUrl = urlRaw ? new URL(urlRaw, baseUrl).toString() : undefined;
+        } catch {
+          sourceUrl = urlRaw || undefined;
+        }
+        try {
+          imageUrl = imageRaw ? new URL(imageRaw, baseUrl).toString() : undefined;
+        } catch {
+          imageUrl = imageRaw || undefined;
+        }
         products.push({
           name,
+          sourceUrl,
+          imageUrl,
+          price: normalizePrice(priceRaw),
           availability: normalizeAvailability(availabilityRaw)
         });
       }
@@ -437,6 +485,66 @@ function extractProductStructuredData(html: string) {
     match = scriptRegex.exec(html);
   }
   return products;
+}
+
+function extractProductCardsFromListing(html: string, baseUrl: URL) {
+  const items: Array<{
+    name: string;
+    sourceUrl?: string;
+    imageUrl?: string;
+    price?: string;
+    availability?: string;
+  }> = [];
+  const productBlockRegex =
+    /<(?:li|article|div)[^>]*class=["'][^"']*(?:product|woocommerce-loop-product)[^"']*["'][^>]*>([\s\S]*?)<\/(?:li|article|div)>/gi;
+  let blockMatch = productBlockRegex.exec(html);
+  while (blockMatch) {
+    const block = blockMatch[1] ?? "";
+    const hrefMatch = block.match(/<a[^>]+href=["']([^"']+)["'][^>]*>/i);
+    const titleMatch =
+      block.match(/<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/i) ||
+      block.match(/<a[^>]*class=["'][^"']*(?:title|name)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+    const priceMatch =
+      block.match(/<span[^>]*class=["'][^"']*price[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) ||
+      block.match(/(\d{1,5}(?:[.,]\d{1,2})?\s?(?:tnd|dt|dinar|eur|\$|usd))/i);
+    const imageMatch = block.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+    const availabilityMatch =
+      block.match(/<span[^>]*class=["'][^"']*(?:stock|availability)[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) ||
+      block.match(/(in stock|out of stock|rupture|disponible|pre-?order)/i);
+
+    const name = normalizeProductName(titleMatch ? sanitizeText(titleMatch[1]) : "");
+    if (!name || isLikelyCategoryName(name)) {
+      blockMatch = productBlockRegex.exec(html);
+      continue;
+    }
+
+    let sourceUrl: string | undefined;
+    if (hrefMatch?.[1]) {
+      try {
+        sourceUrl = new URL(hrefMatch[1], baseUrl).toString();
+      } catch {
+        sourceUrl = hrefMatch[1];
+      }
+    }
+
+    let imageUrl: string | undefined;
+    if (imageMatch?.[1]) {
+      try {
+        imageUrl = new URL(imageMatch[1], baseUrl).toString();
+      } catch {
+        imageUrl = imageMatch[1];
+      }
+    }
+
+    const price = normalizePrice(priceMatch ? sanitizeText(priceMatch[1] ?? priceMatch[0]) : "");
+    const availability = normalizeAvailability(
+      availabilityMatch ? sanitizeText(availabilityMatch[1] ?? availabilityMatch[0]) : ""
+    );
+
+    items.push({ name, sourceUrl, imageUrl, price: price || undefined, availability: availability || undefined });
+    blockMatch = productBlockRegex.exec(html);
+  }
+  return items;
 }
 
 function findPolicySnippet(text: string, keywords: string[]) {
@@ -478,7 +586,16 @@ export async function autoFillBrandFromWebsite(input: {
   const phones = new Set<string>();
   const emails = new Set<string>();
   const socials = new Set<string>();
-  const productMap = new Map<string, string>();
+  const productMap = new Map<
+    string,
+    {
+      name: string;
+      sourceUrl?: string;
+      imageUrl?: string;
+      price?: string;
+      availability?: string;
+    }
+  >();
   const shippingSnippets: string[] = [];
   const returnSnippets: string[] = [];
   const paymentSnippets: string[] = [];
@@ -511,10 +628,20 @@ export async function autoFillBrandFromWebsite(input: {
     for (const social of contact.socials) socials.add(social);
 
     const pathLower = pageUrl.pathname.toLowerCase();
-    const structuredProducts = extractProductStructuredData(html);
-    for (const product of structuredProducts) {
-      if (!productMap.has(product.name)) {
-        productMap.set(product.name, product.availability ?? "");
+    const structuredProducts = extractProductStructuredData(html, pageUrl);
+    const listingProducts = extractProductCardsFromListing(html, pageUrl);
+    for (const product of [...structuredProducts, ...listingProducts]) {
+      const existing = productMap.get(product.name);
+      if (!existing) {
+        productMap.set(product.name, product);
+      } else {
+        productMap.set(product.name, {
+          ...existing,
+          sourceUrl: existing.sourceUrl || product.sourceUrl,
+          imageUrl: existing.imageUrl || product.imageUrl,
+          price: existing.price || product.price,
+          availability: existing.availability || product.availability
+        });
       }
     }
 
@@ -528,7 +655,13 @@ export async function autoFillBrandFromWebsite(input: {
       const normalizedTitle = normalizeProductName(title).slice(0, 120);
       if (normalizedTitle && !isLikelyCategoryName(normalizedTitle) && !productMap.has(normalizedTitle)) {
         const availabilityFromText = normalizeAvailability(body);
-        productMap.set(normalizedTitle, availabilityFromText);
+        productMap.set(normalizedTitle, {
+          name: normalizedTitle,
+          sourceUrl: pageUrl.toString(),
+          imageUrl: extractImageUrl(html, pageUrl) || undefined,
+          price: normalizePrice(extractPriceText(html)) || undefined,
+          availability: availabilityFromText || undefined
+        });
       }
     }
 
@@ -579,9 +712,10 @@ export async function autoFillBrandFromWebsite(input: {
     shippingInfo: pickFirst(shippingSnippets),
     returnPolicy: pickFirst(returnSnippets),
     paymentMethods: paymentMethods.join(", "),
-    keyProducts: Array.from(productMap.entries())
-      .map(([name, availability]) => (availability ? `${name} (${availability})` : name))
+    keyProducts: Array.from(productMap.values())
+      .map((item) => (item.availability ? `${item.name} (${item.availability})` : item.name))
       .slice(0, 30),
+    products: Array.from(productMap.values()).slice(0, 60),
     context,
     pagesScanned
   };

@@ -590,8 +590,10 @@ export default function KnowledgePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         workspaceId,
+        brandId,
         websiteUrl,
-        maxPages: 10
+        maxPages: 10,
+        persistProducts: true
       })
     });
     const payload = (await response.json().catch(() => ({}))) as {
@@ -608,19 +610,23 @@ export default function KnowledgePage() {
         context?: string;
         pagesScanned?: number;
       };
+      persistedProducts?: { created?: number; updated?: number };
       error?: string;
     };
     if (!response.ok || !payload.data) {
       throw new Error(payload.error ?? tr("knowledge.autofillFailed", "Failed to auto-fill brand data."));
     }
-    return payload.data;
+    return {
+      data: payload.data,
+      persistedProducts: payload.persistedProducts ?? { created: 0, updated: 0 }
+    };
   };
 
   const onAutofillFromWebsite = async () => {
     setAutofilling(true);
     setProfileReport("");
     try {
-      const data = await fetchAutofillData();
+      const { data, persistedProducts } = await fetchAutofillData();
       setBrandProfile((prev) => ({
         ...prev,
         instagram: data.instagram || prev.instagram,
@@ -641,7 +647,9 @@ export default function KnowledgePage() {
         `${tr("knowledge.autofillDone", "Auto-filled from website")}: ${data.pagesScanned ?? 0} ${tr(
           "knowledge.pagesCrawled",
           "pages crawled"
-        )}.`
+        )}. ${tr("products.addProduct", "Products")}: +${persistedProducts.created ?? 0}/~${
+          persistedProducts.updated ?? 0
+        }.`
       );
     } catch (error) {
       setProfileReport(
@@ -662,7 +670,7 @@ export default function KnowledgePage() {
     setAutofillAndBootstrapping(true);
     setProfileReport("");
     try {
-      const data = await fetchAutofillData();
+      const { data, persistedProducts } = await fetchAutofillData();
       const mergedInstagram = data.instagram || brandProfile.instagram;
       const mergedContext = data.context || brandProfile.context;
       const mergedPhone = data.contactPhone || starterKit.contactPhone;
@@ -739,7 +747,7 @@ export default function KnowledgePage() {
           "common.update",
           "Update"
         )} ${payload.stats?.knowledgeUpdated ?? 0} | ${tr("products.addProduct", "Products")} +${
-          payload.stats?.productsCreated ?? 0
+          (payload.stats?.productsCreated ?? 0) + (persistedProducts.created ?? 0)
         }`
       );
     } catch (error) {

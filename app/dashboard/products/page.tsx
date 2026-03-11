@@ -22,6 +22,7 @@ type ProductRecord = {
   category?: string;
   description?: string;
   price?: string;
+  availability?: string;
   imageUrl?: string;
   sourceUrl?: string;
   tags: string[];
@@ -46,6 +47,7 @@ export default function ProductsPage() {
     name: "",
     category: "",
     price: "",
+    availability: "",
     imageUrl: "",
     sourceUrl: "",
     tags: "",
@@ -146,6 +148,7 @@ export default function ProductsPage() {
       name: product.name,
       category: product.category ?? "",
       price: product.price ?? "",
+      availability: product.availability ?? "",
       imageUrl: product.imageUrl ?? "",
       sourceUrl: product.sourceUrl ?? "",
       tags: product.tags.join(", "),
@@ -159,6 +162,7 @@ export default function ProductsPage() {
       name: "",
       category: "",
       price: "",
+      availability: "",
       imageUrl: "",
       sourceUrl: "",
       tags: "",
@@ -184,6 +188,7 @@ export default function ProductsPage() {
           name: form.name,
           category: form.category || null,
           price: form.price || null,
+          availability: form.availability || null,
           imageUrl: form.imageUrl || null,
           sourceUrl: form.sourceUrl || null,
           description: form.description || null,
@@ -335,6 +340,7 @@ export default function ProductsPage() {
                         )}
                       </div>
                       {product.price && <p className="text-sm text-secondary">{product.price}</p>}
+                      {product.availability && <p className="text-xs text-muted">{product.availability}</p>}
                       {product.description && (
                         <p className="line-clamp-3 text-xs text-muted">{product.description}</p>
                       )}
@@ -390,6 +396,11 @@ export default function ProductsPage() {
                 value={form.price}
                 onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
                 placeholder={tr("products.form.price", "Price")}
+              />
+              <Input
+                value={form.availability}
+                onChange={(event) => setForm((prev) => ({ ...prev, availability: event.target.value }))}
+                placeholder={tr("products.form.availability", "Availability")}
               />
               <Input
                 value={form.imageUrl}
