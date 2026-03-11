@@ -415,7 +415,7 @@ export default function SettingsPage() {
             <div className="premium-subpanel p-3 text-xs text-secondary">
               {tr("settings.activeSessions", "Active sessions")}: {activeSessions.join(" · ")}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 disabled={!!saving.security}
@@ -474,7 +474,7 @@ export default function SettingsPage() {
                 {tr("settings.signOutOtherSessions", "Sign out other sessions")}
               </Button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => pushToast("success", tr("settings.apiKeyRotationStarted", "API key rotation started."))}>
                 {tr("settings.rotateApiKeys", "Rotate API Keys")}
               </Button>
@@ -491,7 +491,7 @@ export default function SettingsPage() {
             <Input value={billingPlan} onChange={(e) => setBillingPlan(e.target.value)} placeholder={tr("settings.plan", "Plan")} />
             <Input value={billingUsage} onChange={(e) => setBillingUsage(e.target.value)} placeholder={tr("settings.usage", "Usage")} />
             <Input value={billingCycle} onChange={(e) => setBillingCycle(e.target.value)} placeholder={tr("settings.invoiceCycle", "Invoice cycle")} />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 disabled={!!saving.billing}
                 onClick={() =>

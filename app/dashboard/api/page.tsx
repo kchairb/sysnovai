@@ -26,7 +26,7 @@ export default async function ApiPage() {
       <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
         <article className="premium-panel p-4">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-medium">{t(locale, "api.apiKeys", "API Keys")}</h2>
+            <h2 className="premium-section-title">{t(locale, "api.apiKeys", "API Keys")}</h2>
             <Button size="sm">{t(locale, "api.createKey", "Create Key")}</Button>
           </div>
           <div className="space-y-2">
@@ -41,7 +41,7 @@ export default async function ApiPage() {
                   {t(locale, "api.created", "Created")} {item.createdAt} ·{" "}
                   {t(locale, "api.lastUsed", "Last used")} {item.lastUsed}
                 </p>
-                <div className="mt-4 flex gap-2">
+                <div className="premium-action-row mt-4">
                   <Button size="sm" variant="outline">
                     {t(locale, "common.copy", "Copy")}
                   </Button>
@@ -55,7 +55,7 @@ export default async function ApiPage() {
         </article>
 
         <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{t(locale, "api.endpoints", "Endpoints")}</h2>
+          <h2 className="premium-section-title">{t(locale, "api.endpoints", "Endpoints")}</h2>
           <ul className="mt-4 space-y-2 text-sm text-secondary">
             {apiEndpoints.map((endpoint) => (
               <li key={endpoint} className="premium-subpanel p-3">
@@ -74,7 +74,7 @@ export default async function ApiPage() {
       </section>
 
       <section className="premium-panel p-4">
-        <h2 className="text-lg font-medium">{t(locale, "api.websiteWidget", "Website Chat Widget (Multi-store)")}</h2>
+        <h2 className="premium-section-title">{t(locale, "api.websiteWidget", "Website Chat Widget (Multi-store)")}</h2>
         <p className="mt-2 text-sm text-secondary">
           {t(
             locale,
@@ -109,7 +109,7 @@ export default async function ApiPage() {
 
       <section className="premium-panel p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-medium">{t(locale, "api.websiteTranscripts", "Website Chat Transcripts")}</h2>
+          <h2 className="premium-section-title">{t(locale, "api.websiteTranscripts", "Website Chat Transcripts")}</h2>
           <p className="text-xs text-muted">
             {t(locale, "api.latestMessages", "Latest")} {publicLogs.length}{" "}
             {t(locale, "api.messages", "messages")}

@@ -1479,7 +1479,7 @@ export default function KnowledgePage() {
                 onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
                 placeholder={tr("knowledge.entryTags", "Tags (comma separated)")}
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={() => void onSubmit()} disabled={saving}>
                   {saving
                     ? tr("common.saving", "Saving...")
@@ -1582,7 +1582,7 @@ export default function KnowledgePage() {
           <article className="premium-panel p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="premium-section-title">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}

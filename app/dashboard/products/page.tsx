@@ -410,7 +410,7 @@ export default function ProductsPage() {
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       )}
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" onClick={() => onStartEdit(product)}>
                           {tr("common.edit", "Edit")}
                         </Button>
@@ -475,7 +475,7 @@ export default function ProductsPage() {
                 placeholder={tr("products.form.longDescription", "Long description")}
                 className="min-h-[120px]"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => void onSaveEdit()} disabled={saving}>
                   {saving ? tr("common.saving", "Saving...") : tr("common.save", "Save")}
                 </Button>

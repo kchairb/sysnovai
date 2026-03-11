@@ -199,7 +199,7 @@ export default function TunisianAiPage() {
             "Ask about Tunisian daily life, business, communication, and admin tasks in Darija, Arabic, French, or English."
           )}
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="premium-action-row mt-4">
           <Button size="sm" onClick={() => setLanguage("darija")}>
             <Languages className="mr-2 h-4 w-4" />
             Darija
@@ -228,7 +228,7 @@ export default function TunisianAiPage() {
 
       <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
         <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("tunisian.examplePrompts", "Example prompts")}</h2>
+          <h2 className="premium-section-title">{tr("tunisian.examplePrompts", "Example prompts")}</h2>
           <div className="mt-4 space-y-2">
             {tunisianExamples.map((item) => (
               <button
@@ -294,7 +294,7 @@ export default function TunisianAiPage() {
                     {candidate.language} · score {candidate.score} · {new Date(candidate.createdAt).toLocaleString()}
                   </p>
                   {candidate.status === "pending" && (
-                    <div className="mt-2 flex gap-2">
+                    <div className="premium-action-row mt-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -323,7 +323,7 @@ export default function TunisianAiPage() {
         </article>
 
         <article className="premium-panel flex min-h-[520px] flex-col p-4">
-          <h2 className="text-lg font-medium">{tr("common.chat", "Chat")}</h2>
+          <h2 className="premium-section-title">{tr("common.chat", "Chat")}</h2>
           <div className="mt-4 flex-1 space-y-4">
             <div className="ml-auto max-w-[85%] rounded-2xl border border-accent/50 bg-accent/10 p-3 text-sm">
               {message || "Chnowa a7sen tari9a bech nbi3 produit online fi Tounes?"}

@@ -107,7 +107,7 @@ export default function MarketingPage() {
         <article className="premium-panel p-4">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="premium-section-title">{tr("marketing.generatedOutputs", "Generated Outputs")}</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline">
                 {tr("marketing.shorter", "Shorter")}
               </Button>
@@ -135,7 +135,7 @@ export default function MarketingPage() {
                   {output.channel} · {output.language} · {output.tone}
                 </p>
                 <p className="mt-2 text-secondary">{output.preview}</p>
-                <div className="mt-4 flex gap-2">
+                <div className="premium-action-row mt-4">
                   <Button size="sm" variant="secondary">
                     {tr("common.copy", "Copy")}
                   </Button>
