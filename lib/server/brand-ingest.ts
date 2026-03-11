@@ -363,7 +363,6 @@ function normalizeProductName(raw: string) {
   return sanitizeText(raw)
     .replace(/\s*\|\s*collection prestige tunisie$/i, "")
     .replace(/\s*\|\s*boutique parfums de luxe$/i, "")
-    .replace(/\s*archives$/i, "")
     .trim();
 }
 
@@ -376,6 +375,34 @@ function isLikelyCategoryName(name: string) {
     lower.includes("category") ||
     lower.includes("parfums de luxe")
   );
+}
+
+function isLikelyProductDetailUrl(rawUrl?: string) {
+  if (!rawUrl) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    const path = parsed.pathname.toLowerCase();
+    if (
+      path.includes("/product-category/") ||
+      path.includes("/category/") ||
+      path.includes("/collections/") ||
+      path.includes("/collection/") ||
+      path.includes("/shop/") ||
+      path.includes("/store/") ||
+      path.endsWith("/shop") ||
+      path.endsWith("/store")
+    ) {
+      return false;
+    }
+    return (
+      path.includes("/product/") ||
+      path.includes("/products/") ||
+      path.includes("/produit/") ||
+      path.includes("/item/")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function normalizeAvailability(value?: string) {
@@ -471,6 +498,8 @@ function extractProductStructuredData(html: string, baseUrl: URL) {
         } catch {
           imageUrl = imageRaw || undefined;
         }
+        const productUrl = sourceUrl ?? baseUrl.toString();
+        if (!isLikelyProductDetailUrl(productUrl)) continue;
         products.push({
           name,
           sourceUrl,
@@ -540,6 +569,10 @@ function extractProductCardsFromListing(html: string, baseUrl: URL) {
     const availability = normalizeAvailability(
       availabilityMatch ? sanitizeText(availabilityMatch[1] ?? availabilityMatch[0]) : ""
     );
+    if (!isLikelyProductDetailUrl(sourceUrl)) {
+      blockMatch = productBlockRegex.exec(html);
+      continue;
+    }
 
     items.push({ name, sourceUrl, imageUrl, price: price || undefined, availability: availability || undefined });
     blockMatch = productBlockRegex.exec(html);
