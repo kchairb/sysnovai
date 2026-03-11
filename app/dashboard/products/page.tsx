@@ -1,6 +1,4 @@
 import { ImagePlus, Plus } from "lucide-react";
-import { catalogProducts } from "@/lib/mock-data";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { t } from "@/lib/i18n";
@@ -29,25 +27,13 @@ export default async function ProductsPage() {
         <article className="premium-panel p-4">
           <h2 className="text-lg font-medium">{t(locale, "products.catalog", "Catalog")}</h2>
           <div className="mt-4 space-y-2">
-            {catalogProducts.map((product) => (
-              <div key={product.id} className="elevation-l1 p-3 premium-interactive">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">{product.name}</p>
-                  <p className="text-sm text-secondary">{product.price}</p>
-                </div>
-                <p className="mt-2 text-xs text-secondary">
-                  {product.category} · {t(locale, "products.stock", "Stock")}: {product.stock} · {product.delivery}
-                </p>
-                <p className="mt-1 text-xs text-secondary">
-                  {t(locale, "products.payment", "Payment")}: {product.payment}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {product.tags.map((tag) => (
-                    <Badge key={tag}>{tag}</Badge>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="elevation-l1 p-4 text-sm text-secondary">
+              {t(
+                locale,
+                "products.emptyCatalog",
+                "No products yet. Add your real products and they will appear here."
+              )}
+            </div>
           </div>
         </article>
 

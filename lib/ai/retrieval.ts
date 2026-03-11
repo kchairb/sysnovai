@@ -1,4 +1,4 @@
-import { catalogProducts, knowledgeItems, workspaceFaqs } from "@/lib/mock-data";
+import { knowledgeItems, workspaceFaqs } from "@/lib/mock-data";
 import { type RagRequest, type RetrievedContext } from "@/lib/ai/types";
 import { tunisianLifeKnowledge } from "@/lib/tunisian-life-knowledge";
 import { getWorkspaceContext } from "@/lib/workspace-context";
@@ -93,12 +93,6 @@ export async function retrieveContext(input: RagRequest): Promise<RetrievedConte
     query.split(" ").some((token) => faq.toLowerCase().includes(token))
   );
 
-  const matchedProducts = catalogProducts
-    .filter((product) =>
-      query.split(" ").some((token) => product.name.toLowerCase().includes(token))
-    )
-    .map((product) => `${product.name} (${product.price}) - ${product.delivery}`);
-
   const matchedPolicies = mergedPolicies.filter((policy) =>
     query.split(" ").some((token) => policy.toLowerCase().includes(token))
   );
@@ -178,13 +172,11 @@ export async function retrieveContext(input: RagRequest): Promise<RetrievedConte
     faqs: matchedFaqs.length ? matchedFaqs : mergedFaqs.slice(0, 2),
     policies: matchedPolicies.length ? matchedPolicies : mergedPolicies.slice(0, 2),
     products:
-      matchedProducts.length
-        ? matchedProducts
-        : matchedCustomProducts.length
-          ? matchedCustomProducts
-          : mergedProducts.length
-            ? mergedProducts.slice(0, 2)
-            : fallbackKnowledge,
+      matchedCustomProducts.length
+        ? matchedCustomProducts
+        : mergedProducts.length
+          ? mergedProducts.slice(0, 2)
+          : fallbackKnowledge,
     documents: matchedDocuments.length ? matchedDocuments : mergedDocuments.slice(0, 1)
   };
 }
