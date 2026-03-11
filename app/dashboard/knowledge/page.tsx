@@ -30,6 +30,9 @@ export default function KnowledgePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | BrandKnowledgeEntry["category"]>("all");
+  const [ingestUrls, setIngestUrls] = useState("");
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestReport, setIngestReport] = useState<string>("");
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -159,6 +162,47 @@ export default function KnowledgePage() {
     await loadEntries();
   };
 
+  const onIngestLinks = async () => {
+    if (!ingestUrls.trim()) return;
+    setIngesting(true);
+    setIngestReport("");
+    try {
+      const response = await fetch("/api/brand-knowledge/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          urls: ingestUrls
+        })
+      });
+      const payload = (await response.json()) as {
+        successCount?: number;
+        failedCount?: number;
+        results?: Array<{ url: string; ok: boolean; error?: string }>;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? tr("knowledge.ingestFailed", "Link ingestion failed"));
+      }
+      const failed = (payload.results ?? []).filter((item) => !item.ok);
+      setIngestReport(
+        `${tr("knowledge.ingestSuccess", "Ingested")}: ${payload.successCount ?? 0} | ${tr(
+          "knowledge.ingestFailedCount",
+          "Failed"
+        )}: ${payload.failedCount ?? 0}${failed.length ? ` | ${failed[0].url}: ${failed[0].error ?? "error"}` : ""}`
+      );
+      await loadEntries();
+    } catch (error) {
+      setIngestReport(
+        error instanceof Error
+          ? error.message
+          : tr("knowledge.ingestFailed", "Link ingestion failed")
+      );
+    } finally {
+      setIngesting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <section className="dashboard-hero-surface premium-page-hero">
@@ -227,6 +271,29 @@ export default function KnowledgePage() {
                   {tr("common.cancel", "Cancel")}
                 </Button>
               )}
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <p className="text-sm font-semibold">
+              {tr("knowledge.linkIngestion", "Learn from website/social links")}
+            </p>
+            <Textarea
+              value={ingestUrls}
+              onChange={(event) => setIngestUrls(event.target.value)}
+              className="mt-2 min-h-[90px]"
+              placeholder={tr(
+                "knowledge.linkIngestionPlaceholder",
+                "Paste one URL per line (website pages, product pages, social profile links)"
+              )}
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <Button size="sm" onClick={() => void onIngestLinks()} disabled={ingesting}>
+                {ingesting
+                  ? tr("knowledge.ingesting", "Ingesting...")
+                  : tr("knowledge.ingestLinks", "Ingest links")}
+              </Button>
+              {!!ingestReport && <p className="text-xs text-muted">{ingestReport}</p>}
             </div>
           </div>
         </article>
