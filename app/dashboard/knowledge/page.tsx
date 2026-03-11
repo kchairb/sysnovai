@@ -33,6 +33,16 @@ export default function KnowledgePage() {
   const [ingestUrls, setIngestUrls] = useState("");
   const [ingesting, setIngesting] = useState(false);
   const [ingestReport, setIngestReport] = useState<string>("");
+  const [crawlSite, setCrawlSite] = useState(true);
+  const [maxPagesPerSite, setMaxPagesPerSite] = useState(12);
+  const [testPrompt, setTestPrompt] = useState("");
+  const [testLanguage, setTestLanguage] = useState<"darija" | "ar" | "fr" | "en">("fr");
+  const [testMode, setTestMode] = useState<
+    "general" | "support" | "sales" | "marketing" | "tunisian-assistant"
+  >("support");
+  const [testing, setTesting] = useState(false);
+  const [testReply, setTestReply] = useState("");
+  const [testMeta, setTestMeta] = useState<{ provider?: string; model?: string } | null>(null);
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -83,6 +93,13 @@ export default function KnowledgePage() {
         ),
     [entries, search, categoryFilter]
   );
+  const activeEntries = useMemo(() => entries.filter((entry) => entry.isActive), [entries]);
+  const categoryCounts = useMemo(() => {
+    return categories.map((category) => ({
+      category,
+      count: activeEntries.filter((entry) => entry.category === category).length
+    }));
+  }, [activeEntries]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -172,24 +189,38 @@ export default function KnowledgePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
-          urls: ingestUrls
+          urls: ingestUrls,
+          crawlSite,
+          maxPagesPerSite
         })
       });
       const payload = (await response.json()) as {
         successCount?: number;
         failedCount?: number;
-        results?: Array<{ url: string; ok: boolean; error?: string }>;
+        results?: Array<{
+          url: string;
+          ok: boolean;
+          error?: string;
+          pagesCrawled?: number;
+          entriesCreated?: number;
+        }>;
         error?: string;
       };
       if (!response.ok) {
         throw new Error(payload.error ?? tr("knowledge.ingestFailed", "Link ingestion failed"));
       }
       const failed = (payload.results ?? []).filter((item) => !item.ok);
+      const crawledPages = (payload.results ?? []).reduce(
+        (sum, item) => sum + (item.pagesCrawled ?? 0),
+        0
+      );
       setIngestReport(
         `${tr("knowledge.ingestSuccess", "Ingested")}: ${payload.successCount ?? 0} | ${tr(
           "knowledge.ingestFailedCount",
           "Failed"
-        )}: ${payload.failedCount ?? 0}${failed.length ? ` | ${failed[0].url}: ${failed[0].error ?? "error"}` : ""}`
+        )}: ${payload.failedCount ?? 0} | ${tr("knowledge.pagesCrawled", "Pages crawled")}: ${crawledPages}${
+          failed.length ? ` | ${failed[0].url}: ${failed[0].error ?? "error"}` : ""
+        }`
       );
       await loadEntries();
     } catch (error) {
@@ -200,6 +231,39 @@ export default function KnowledgePage() {
       );
     } finally {
       setIngesting(false);
+    }
+  };
+
+  const onTestBrandAssistant = async () => {
+    if (!testPrompt.trim()) return;
+    setTesting(true);
+    setTestReply("");
+    setTestMeta(null);
+    try {
+      const response = await fetch("/api/chat/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          prompt: testPrompt.trim(),
+          language: testLanguage,
+          mode: testMode
+        })
+      });
+      const payload = (await response.json()) as {
+        reply?: string;
+        meta?: { provider?: string; model?: string };
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? tr("workspace.failedGenerateReply", "Failed to generate reply"));
+      }
+      setTestReply(payload.reply ?? tr("workspace.noResponseProvider", "No response from provider."));
+      setTestMeta(payload.meta ?? null);
+    } catch (error) {
+      setTestReply(error instanceof Error ? error.message : tr("workspace.generationFailed", "Generation failed"));
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -221,6 +285,96 @@ export default function KnowledgePage() {
             {tr("common.workspace", "Workspace")}: {workspaceId}
           </Badge>
         </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <article className="premium-panel p-4">
+          <h2 className="text-lg font-medium">
+            {tr("knowledge.learningStatus", "Learning status")}
+          </h2>
+          <p className="mt-1 text-sm text-secondary">
+            {tr(
+              "knowledge.learningStatusDescription",
+              "This shows what your assistant currently knows from active brand entries."
+            )}
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {categoryCounts.map((item) => (
+              <div key={item.category} className="rounded-xl border border-border/70 bg-elevated/20 px-3 py-2">
+                <p className="text-xs uppercase tracking-wide text-muted">{item.category}</p>
+                <p className="text-lg font-semibold">{item.count}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <p className="text-xs text-muted">
+              {tr("knowledge.totalActiveEntries", "Total active entries")}:
+            </p>
+            <p className="text-xl font-semibold">{activeEntries.length}</p>
+          </div>
+        </article>
+
+        <article className="premium-panel p-4">
+          <h2 className="text-lg font-medium">
+            {tr("knowledge.brandChatTester", "Brand chat tester")}
+          </h2>
+          <p className="mt-1 text-sm text-secondary">
+            {tr(
+              "knowledge.brandChatTesterDescription",
+              "Ask a question as a customer and verify the assistant uses your learned brand data."
+            )}
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <select
+              value={testLanguage}
+              onChange={(event) => setTestLanguage(event.target.value as typeof testLanguage)}
+              className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
+            >
+              <option value="fr">French</option>
+              <option value="darija">Darija</option>
+              <option value="ar">Arabic</option>
+              <option value="en">English</option>
+            </select>
+            <select
+              value={testMode}
+              onChange={(event) => setTestMode(event.target.value as typeof testMode)}
+              className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm sm:col-span-2"
+            >
+              <option value="general">General Assistant</option>
+              <option value="support">Support Assistant</option>
+              <option value="sales">Sales Assistant</option>
+              <option value="marketing">Marketing Assistant</option>
+              <option value="tunisian-assistant">Tunisian Assistant</option>
+            </select>
+          </div>
+          <Textarea
+            value={testPrompt}
+            onChange={(event) => setTestPrompt(event.target.value)}
+            className="mt-2 min-h-[90px]"
+            placeholder={tr(
+              "knowledge.testPromptPlaceholder",
+              "Example: What are your delivery and return conditions in Tunisia?"
+            )}
+          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <Button size="sm" onClick={() => void onTestBrandAssistant()} disabled={testing}>
+              {testing ? tr("workspace.generating", "Generating...") : tr("knowledge.testNow", "Test now")}
+            </Button>
+            {testMeta?.provider && (
+              <p className="text-xs text-muted">
+                {testMeta.provider}/{testMeta.model ?? "default"}
+              </p>
+            )}
+          </div>
+          <div className="mt-3 rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted">
+              {tr("knowledge.assistantReply", "Assistant reply")}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-secondary">
+              {testReply || tr("knowledge.noReplyYet", "No test reply yet.")}
+            </p>
+          </div>
+        </article>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
@@ -287,6 +441,27 @@ export default function KnowledgePage() {
                 "Paste one URL per line (website pages, product pages, social profile links)"
               )}
             />
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                <input
+                  type="checkbox"
+                  checked={crawlSite}
+                  onChange={(event) => setCrawlSite(event.target.checked)}
+                />
+                {tr("knowledge.crawlWholeSite", "Crawl internal pages")}
+              </label>
+              <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                {tr("knowledge.maxPages", "Max pages")}
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={maxPagesPerSite}
+                  onChange={(event) => setMaxPagesPerSite(Number(event.target.value || 10))}
+                  className="h-8 w-16 rounded-md border border-border/70 bg-elevated/30 px-2"
+                />
+              </label>
+            </div>
             <div className="mt-2 flex items-center gap-2">
               <Button size="sm" onClick={() => void onIngestLinks()} disabled={ingesting}>
                 {ingesting

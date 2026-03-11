@@ -3,6 +3,8 @@ import { createBrandKnowledgeEntry, type BrandKnowledgeCategory } from "@/lib/se
 type IngestResult = {
   url: string;
   ok: boolean;
+  pagesCrawled?: number;
+  entriesCreated?: number;
   entryId?: string;
   title?: string;
   category?: BrandKnowledgeCategory;
@@ -48,6 +50,58 @@ function detectCategory(hostname: string): BrandKnowledgeCategory {
   return "document";
 }
 
+function detectCategoryForUrl(url: URL): BrandKnowledgeCategory {
+  const hostCategory = detectCategory(url.hostname);
+  if (hostCategory === "brand") return hostCategory;
+  const path = url.pathname.toLowerCase();
+  if (
+    path.includes("/product") ||
+    path.includes("/products") ||
+    path.includes("/shop") ||
+    path.includes("/store") ||
+    path.includes("/boutique")
+  ) {
+    return "product";
+  }
+  if (path.includes("/policy") || path.includes("/terms") || path.includes("/return")) {
+    return "policy";
+  }
+  if (path.includes("/faq")) {
+    return "faq";
+  }
+  return "document";
+}
+
+function extractInternalLinks(html: string, baseUrl: URL) {
+  const links = new Set<string>();
+  const hrefRegex = /href=["']([^"'#]+)["']/gi;
+  let match: RegExpExecArray | null = hrefRegex.exec(html);
+  while (match) {
+    const href = match[1]?.trim();
+    if (!href) {
+      match = hrefRegex.exec(html);
+      continue;
+    }
+    if (href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) {
+      match = hrefRegex.exec(html);
+      continue;
+    }
+    try {
+      const resolved = new URL(href, baseUrl);
+      if (resolved.hostname !== baseUrl.hostname) {
+        match = hrefRegex.exec(html);
+        continue;
+      }
+      resolved.hash = "";
+      links.add(resolved.toString());
+    } catch {
+      // ignore malformed URLs
+    }
+    match = hrefRegex.exec(html);
+  }
+  return [...links];
+}
+
 async function fetchHtml(url: string) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
@@ -71,8 +125,11 @@ async function fetchHtml(url: string) {
 export async function ingestBrandUrls(input: {
   workspaceId: string;
   urls: string[];
+  crawlSite?: boolean;
+  maxPagesPerSite?: number;
 }) {
   const urls = input.urls.slice(0, 8);
+  const maxPagesPerSite = Math.min(Math.max(input.maxPagesPerSite ?? 10, 1), 50);
   const results: IngestResult[] = [];
 
   for (const rawUrl of urls) {
@@ -84,39 +141,71 @@ export async function ingestBrandUrls(input: {
         throw new Error("Only http/https URLs are supported.");
       }
 
-      const html = await fetchHtml(parsed.toString());
-      const pageTitle =
-        extractTagContent(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
-        extractTagContent(html, /<title[^>]*>([\s\S]*?)<\/title>/i) ||
-        parsed.hostname;
-      const metaDescription =
-        extractTagContent(html, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
-        extractTagContent(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i);
-      const bodyText = extractBodyText(html);
-      const category = detectCategory(parsed.hostname);
+      const visited = new Set<string>();
+      const queue: string[] = [parsed.toString()];
+      let pagesCrawled = 0;
+      let entriesCreated = 0;
+      let firstEntry:
+        | { id: string; title: string; category: BrandKnowledgeCategory }
+        | undefined;
 
-      const content = [
-        `Source URL: ${parsed.toString()}`,
-        metaDescription ? `Summary: ${metaDescription}` : "",
-        bodyText ? `Extracted text: ${bodyText}` : ""
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+      while (queue.length && pagesCrawled < (input.crawlSite ? maxPagesPerSite : 1)) {
+        const currentUrl = queue.shift();
+        if (!currentUrl || visited.has(currentUrl)) continue;
+        visited.add(currentUrl);
 
-      const entry = await createBrandKnowledgeEntry({
-        workspaceId: input.workspaceId,
-        category,
-        title: pageTitle.slice(0, 160),
-        content,
-        tags: [parsed.hostname, category, "auto-ingest"]
-      });
+        const currentParsed = new URL(currentUrl);
+        const html = await fetchHtml(currentParsed.toString());
+        pagesCrawled += 1;
+
+        const pageTitle =
+          extractTagContent(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+          extractTagContent(html, /<title[^>]*>([\s\S]*?)<\/title>/i) ||
+          currentParsed.hostname;
+        const metaDescription =
+          extractTagContent(html, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
+          extractTagContent(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i);
+        const bodyText = extractBodyText(html);
+        const category = detectCategoryForUrl(currentParsed);
+
+        const content = [
+          `Source URL: ${currentParsed.toString()}`,
+          metaDescription ? `Summary: ${metaDescription}` : "",
+          bodyText ? `Extracted text: ${bodyText}` : ""
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+
+        const entry = await createBrandKnowledgeEntry({
+          workspaceId: input.workspaceId,
+          category,
+          title: pageTitle.slice(0, 160),
+          content,
+          tags: [currentParsed.hostname, category, "auto-ingest", "crawl"]
+        });
+        entriesCreated += 1;
+        if (!firstEntry) {
+          firstEntry = { id: entry.id, title: entry.title, category: entry.category };
+        }
+
+        if (input.crawlSite) {
+          const internalLinks = extractInternalLinks(html, currentParsed);
+          for (const link of internalLinks) {
+            if (!visited.has(link) && !queue.includes(link) && queue.length < maxPagesPerSite * 3) {
+              queue.push(link);
+            }
+          }
+        }
+      }
 
       results.push({
         url,
         ok: true,
-        entryId: entry.id,
-        title: entry.title,
-        category: entry.category
+        pagesCrawled,
+        entriesCreated,
+        entryId: firstEntry?.id,
+        title: firstEntry?.title,
+        category: firstEntry?.category
       });
     } catch (error) {
       results.push({

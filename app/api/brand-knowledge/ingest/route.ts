@@ -7,6 +7,8 @@ import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 type IngestBody = {
   workspaceId?: string;
   urls?: string[] | string;
+  crawlSite?: boolean;
+  maxPagesPerSite?: number;
 };
 
 function parseUrls(input: IngestBody["urls"]) {
@@ -40,7 +42,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "At least one URL is required." }, { status: 400 });
     }
 
-    const results = await ingestBrandUrls({ workspaceId, urls });
+    const results = await ingestBrandUrls({
+      workspaceId,
+      urls,
+      crawlSite: Boolean(body.crawlSite),
+      maxPagesPerSite: Number(body.maxPagesPerSite ?? 10)
+    });
     const successCount = results.filter((row) => row.ok).length;
     return NextResponse.json({
       ok: true,
