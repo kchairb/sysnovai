@@ -335,7 +335,7 @@ export default function KnowledgePage() {
                   <p className="font-medium">{entry.title}</p>
                   <div className="flex items-center gap-1">
                     <Badge>{entry.category}</Badge>
-                    <Badge variant={entry.isActive ? "accent" : "outline"}>
+                    <Badge variant={entry.isActive ? "accent" : "default"}>
                       {entry.isActive ? tr("common.active", "Active") : tr("common.inactive", "Inactive")}
                     </Badge>
                   </div>
