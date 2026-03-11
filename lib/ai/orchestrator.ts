@@ -58,7 +58,7 @@ export async function runRagPipeline(input: RagRequest): Promise<RagResult> {
   const trace = createTrace();
 
   // Retrieve context from workspace knowledge, products, and documents.
-  const context = retrieveContext(input);
+  const context = await retrieveContext(input);
   addTraceEvent(trace, {
     stage: "retrieve-context",
     status: "success"

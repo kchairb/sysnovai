@@ -2,6 +2,7 @@ import { catalogProducts, knowledgeItems, workspaceFaqs } from "@/lib/mock-data"
 import { type RagRequest, type RetrievedContext } from "@/lib/ai/types";
 import { tunisianLifeKnowledge } from "@/lib/tunisian-life-knowledge";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { listBrandKnowledgeEntries } from "@/lib/server/brand-knowledge";
 
 const workspacePolicies = [
   "Returns accepted within 7 days for unopened items.",
@@ -22,9 +23,27 @@ function hasAnyToken(query: string, tokens: string[]) {
   return tokens.some((token) => query.includes(token));
 }
 
-export function retrieveContext(input: RagRequest): RetrievedContext {
+export async function retrieveContext(input: RagRequest): Promise<RetrievedContext> {
   const query = normalize(input.message);
   const workspaceContext = getWorkspaceContext(input.workspaceId);
+  const brandEntries = await listBrandKnowledgeEntries({
+    workspaceId: input.workspaceId,
+    includeInactive: false,
+    search: query,
+    limit: 120
+  }).catch(() => []);
+  const brandFaqs = brandEntries
+    .filter((entry) => entry.category === "faq")
+    .map((entry) => `${entry.title}: ${entry.content}`);
+  const brandPolicies = brandEntries
+    .filter((entry) => entry.category === "policy")
+    .map((entry) => `${entry.title}: ${entry.content}`);
+  const brandProducts = brandEntries
+    .filter((entry) => entry.category === "product")
+    .map((entry) => `${entry.title}: ${entry.content}`);
+  const brandDocuments = brandEntries
+    .filter((entry) => entry.category === "document" || entry.category === "brand")
+    .map((entry) => `${entry.title}: ${entry.content}`);
   const sourceFaqs = workspaceContext.faqs.length ? workspaceContext.faqs : workspaceFaqs;
   const sourcePolicies = workspaceContext.policies.length
     ? workspaceContext.policies
@@ -33,8 +52,12 @@ export function retrieveContext(input: RagRequest): RetrievedContext {
   const sourceDocuments = workspaceContext.documents.length
     ? workspaceContext.documents
     : workspaceDocuments;
+  const mergedFaqs = [...brandFaqs, ...sourceFaqs];
+  const mergedPolicies = [...brandPolicies, ...sourcePolicies];
+  const mergedProducts = [...brandProducts, ...sourceProducts];
+  const mergedDocuments = [...brandDocuments, ...sourceDocuments];
 
-  const matchedFaqs = sourceFaqs.filter((faq) =>
+  const matchedFaqs = mergedFaqs.filter((faq) =>
     query.split(" ").some((token) => faq.toLowerCase().includes(token))
   );
 
@@ -44,15 +67,15 @@ export function retrieveContext(input: RagRequest): RetrievedContext {
     )
     .map((product) => `${product.name} (${product.price}) - ${product.delivery}`);
 
-  const matchedPolicies = sourcePolicies.filter((policy) =>
+  const matchedPolicies = mergedPolicies.filter((policy) =>
     query.split(" ").some((token) => policy.toLowerCase().includes(token))
   );
 
-  const matchedCustomProducts = sourceProducts.filter((product) =>
+  const matchedCustomProducts = mergedProducts.filter((product) =>
     query.split(" ").some((token) => product.toLowerCase().includes(token))
   );
 
-  const matchedDocuments = sourceDocuments.filter((doc) =>
+  const matchedDocuments = mergedDocuments.filter((doc) =>
     query.split(" ").some((token) => doc.toLowerCase().includes(token))
   );
 
@@ -120,16 +143,16 @@ export function retrieveContext(input: RagRequest): RetrievedContext {
   }
 
   return {
-    faqs: matchedFaqs.length ? matchedFaqs : sourceFaqs.slice(0, 2),
-    policies: matchedPolicies.length ? matchedPolicies : sourcePolicies.slice(0, 2),
+    faqs: matchedFaqs.length ? matchedFaqs : mergedFaqs.slice(0, 2),
+    policies: matchedPolicies.length ? matchedPolicies : mergedPolicies.slice(0, 2),
     products:
       matchedProducts.length
         ? matchedProducts
         : matchedCustomProducts.length
           ? matchedCustomProducts
-          : sourceProducts.length
-            ? sourceProducts.slice(0, 2)
+          : mergedProducts.length
+            ? mergedProducts.slice(0, 2)
             : fallbackKnowledge,
-    documents: matchedDocuments.length ? matchedDocuments : sourceDocuments.slice(0, 1)
+    documents: matchedDocuments.length ? matchedDocuments : mergedDocuments.slice(0, 1)
   };
 }

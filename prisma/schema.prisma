@@ -33,6 +33,7 @@ model Workspace {
   chats        WorkspaceChat[]
   settings     WorkspaceSettings?
   invites      InviteToken[]
+  brandKnowledge BrandKnowledgeEntry[]
 }
 
 model WorkspaceMember {
@@ -169,6 +170,22 @@ model RateLimitEvent {
 
   @@index([bucket, createdAt(sort: Desc)])
   @@index([clientKey, createdAt(sort: Desc)])
+}
+
+model BrandKnowledgeEntry {
+  id          String    @id @default(cuid())
+  workspaceId String
+  category    String
+  title       String
+  content     String
+  tags        Json?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, isActive, updatedAt(sort: Desc)])
+  @@index([workspaceId, category, updatedAt(sort: Desc)])
 }
 
 model TunisianLearningCandidate {
