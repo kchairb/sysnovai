@@ -79,10 +79,12 @@ export async function listWorkspaceProducts(input: {
   workspaceId: string;
   includeInactive?: boolean;
   search?: string;
+  sourceDomain?: string;
   limit?: number;
 }) {
   const limit = Math.min(Math.max(input.limit ?? 200, 1), 500);
   const search = input.search?.trim();
+  const sourceDomain = input.sourceDomain?.trim().toLowerCase();
 
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
@@ -96,6 +98,14 @@ export async function listWorkspaceProducts(input: {
                 { name: { contains: search, mode: "insensitive" } },
                 { description: { contains: search, mode: "insensitive" } }
               ]
+            }
+          : {}),
+        ...(sourceDomain
+          ? {
+              sourceUrl: {
+                contains: sourceDomain,
+                mode: "insensitive"
+              }
             }
           : {})
       },
@@ -115,6 +125,7 @@ export async function listWorkspaceProducts(input: {
     .filter((item) =>
       q ? `${item.name}\n${item.description ?? ""}\n${item.tags.join(" ")}`.toLowerCase().includes(q) : true
     )
+    .filter((item) => (sourceDomain ? (item.sourceUrl ?? "").toLowerCase().includes(sourceDomain) : true))
     .slice(0, limit);
 }
 
@@ -257,4 +268,111 @@ export async function upsertIngestedWorkspaceProduct(input: {
   existing.isActive = true;
   existing.updatedAt = new Date().toISOString();
   return { product: existing, action: "updated" as const };
+}
+
+export async function updateWorkspaceProduct(input: {
+  id: string;
+  workspaceId: string;
+  name?: string;
+  category?: string | null;
+  description?: string | null;
+  price?: string | null;
+  imageUrl?: string | null;
+  sourceUrl?: string | null;
+  tags?: unknown;
+  isActive?: boolean;
+}) {
+  if (hasDatabaseUrl()) {
+    const prisma = getPrisma();
+    const existing = await prisma.product.findFirst({
+      where: { id: input.id, workspace: { externalId: input.workspaceId } },
+      include: { workspace: { select: { externalId: true } } }
+    });
+    if (!existing) {
+      throw new Error("Product not found.");
+    }
+    const row = await prisma.product.update({
+      where: { id: existing.id },
+      data: {
+        name: typeof input.name === "string" ? input.name.trim().slice(0, 180) : undefined,
+        category:
+          input.category === null
+            ? null
+            : typeof input.category === "string"
+              ? input.category.trim().slice(0, 80) || null
+              : undefined,
+        description:
+          input.description === null
+            ? null
+            : typeof input.description === "string"
+              ? input.description.trim().slice(0, 3000) || null
+              : undefined,
+        price:
+          input.price === null
+            ? null
+            : typeof input.price === "string"
+              ? input.price.trim().slice(0, 80) || null
+              : undefined,
+        imageUrl:
+          input.imageUrl === null
+            ? null
+            : typeof input.imageUrl === "string"
+              ? input.imageUrl.trim().slice(0, 600) || null
+              : undefined,
+        sourceUrl:
+          input.sourceUrl === null
+            ? null
+            : typeof input.sourceUrl === "string"
+              ? input.sourceUrl.trim().slice(0, 600) || null
+              : undefined,
+        tags: input.tags !== undefined ? (normalizeTags(input.tags) as Prisma.InputJsonValue) : undefined,
+        isActive: typeof input.isActive === "boolean" ? input.isActive : undefined
+      },
+      include: { workspace: { select: { externalId: true } } }
+    });
+    return mapRow(row);
+  }
+
+  ensurePersistentStorageConfigured();
+  const store = global.__sysnovaProducts ?? [];
+  const item = store.find((row) => row.id === input.id && row.workspaceId === input.workspaceId);
+  if (!item) {
+    throw new Error("Product not found.");
+  }
+  if (typeof input.name === "string") item.name = input.name.trim().slice(0, 180);
+  if (input.category === null) item.category = undefined;
+  else if (typeof input.category === "string") item.category = input.category.trim().slice(0, 80) || undefined;
+  if (input.description === null) item.description = undefined;
+  else if (typeof input.description === "string")
+    item.description = input.description.trim().slice(0, 3000) || undefined;
+  if (input.price === null) item.price = undefined;
+  else if (typeof input.price === "string") item.price = input.price.trim().slice(0, 80) || undefined;
+  if (input.imageUrl === null) item.imageUrl = undefined;
+  else if (typeof input.imageUrl === "string") item.imageUrl = input.imageUrl.trim().slice(0, 600) || undefined;
+  if (input.sourceUrl === null) item.sourceUrl = undefined;
+  else if (typeof input.sourceUrl === "string")
+    item.sourceUrl = input.sourceUrl.trim().slice(0, 600) || undefined;
+  if (input.tags !== undefined) item.tags = normalizeTags(input.tags);
+  if (typeof input.isActive === "boolean") item.isActive = input.isActive;
+  item.updatedAt = new Date().toISOString();
+  return item;
+}
+
+export async function deleteWorkspaceProduct(input: { id: string; workspaceId: string }) {
+  if (hasDatabaseUrl()) {
+    const prisma = getPrisma();
+    const existing = await prisma.product.findFirst({
+      where: { id: input.id, workspace: { externalId: input.workspaceId } },
+      select: { id: true }
+    });
+    if (!existing) {
+      throw new Error("Product not found.");
+    }
+    await prisma.product.delete({ where: { id: existing.id } });
+    return;
+  }
+
+  ensurePersistentStorageConfigured();
+  const store = global.__sysnovaProducts ?? [];
+  global.__sysnovaProducts = store.filter((row) => !(row.id === input.id && row.workspaceId === input.workspaceId));
 }

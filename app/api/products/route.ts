@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const workspaceId = searchParams.get("workspaceId")?.trim() || "workspace-default";
     const search = searchParams.get("search")?.trim() || undefined;
+    const sourceDomain = searchParams.get("sourceDomain")?.trim() || undefined;
     const includeInactive = searchParams.get("includeInactive") === "1";
     const limit = Number(searchParams.get("limit") ?? 200);
 
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
     const data = await listWorkspaceProducts({
       workspaceId,
       search,
+      sourceDomain,
       includeInactive,
       limit
     });
