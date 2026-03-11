@@ -46,7 +46,7 @@ export function AuthShell({
         </article>
         <article className="premium-panel hidden p-8 lg:block">
           <p className="premium-page-kicker">Why Sysnova AI</p>
-          <h2 className="mt-2 text-2xl font-semibold">
+          <h2 className="premium-section-title mt-2 text-2xl">
             Premium AI for business execution and Tunisian intelligence
           </h2>
           <ul className="mt-6 space-y-3 text-sm text-secondary">

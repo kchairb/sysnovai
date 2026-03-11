@@ -384,7 +384,7 @@ export default function AdminPage() {
       </section>
 
       <section className="premium-panel p-4">
-        <h2 className="text-sm font-medium">{tr("admin.inviteByEmail", "Invite by email")}</h2>
+        <h2 className="premium-section-title">{tr("admin.inviteByEmail", "Invite by email")}</h2>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           <Input
             placeholder="Invite email"
@@ -469,7 +469,7 @@ export default function AdminPage() {
       </section>
 
       <section className="premium-panel p-4">
-        <h2 className="text-sm font-medium">{tr("admin.pendingInvitations", "Pending invitations")}</h2>
+        <h2 className="premium-section-title">{tr("admin.pendingInvitations", "Pending invitations")}</h2>
         <div className="mt-3 space-y-2">
           {invitations.map((invite) => (
             <div
@@ -518,7 +518,7 @@ export default function AdminPage() {
       <section className="grid gap-4 xl:grid-cols-2">
         <article className="premium-panel p-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">{tr("admin.reliabilityAlerts", "Reliability alerts")}</h2>
+            <h2 className="premium-section-title">{tr("admin.reliabilityAlerts", "Reliability alerts")}</h2>
             <Input
               type="number"
               min={5}
@@ -551,7 +551,7 @@ export default function AdminPage() {
         </article>
 
         <article className="premium-panel p-4">
-          <h2 className="text-sm font-medium">{tr("admin.rateLimitInsights", "Rate-limit insights")}</h2>
+          <h2 className="premium-section-title">{tr("admin.rateLimitInsights", "Rate-limit insights")}</h2>
           <p className="mt-2 text-xs text-secondary">
             Window: last {opsWindowMinutes} min · total throttles: {rateSummary?.totalEvents ?? 0}
           </p>
@@ -599,7 +599,7 @@ export default function AdminPage() {
       </section>
 
       <section className="premium-panel p-4">
-        <h2 className="text-sm font-medium">{tr("admin.createUserManually", "Create user manually")}</h2>
+        <h2 className="premium-section-title">{tr("admin.createUserManually", "Create user manually")}</h2>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           <Input
             placeholder="Name"
@@ -784,7 +784,7 @@ export default function AdminPage() {
       </section>
 
       <section className="premium-panel p-4">
-        <h2 className="text-sm font-medium">{tr("admin.auditLog", "Audit log")}</h2>
+        <h2 className="premium-section-title">{tr("admin.auditLog", "Audit log")}</h2>
         <div className="mt-3 grid gap-2 md:grid-cols-5">
           <Input
             value={auditSearch}

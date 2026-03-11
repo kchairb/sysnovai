@@ -120,7 +120,7 @@ export function LlmProviderCard() {
 
   return (
     <article className="premium-panel p-4">
-      <h2 className="text-lg font-medium">{tr("llm.title", "LLM Provider")}</h2>
+      <h2 className="premium-section-title">{tr("llm.title", "LLM Provider")}</h2>
       <p className="mt-2 text-sm text-secondary">
         {tr("llm.description", "Configure Gemini, Groq, or OpenAI with automatic fallback support.")}
       </p>
@@ -144,7 +144,7 @@ export function LlmProviderCard() {
               : "Add OPENAI_API_KEY and set SYSNOVA_LLM_PROVIDER=openai in .env.local, then restart the dev server."}
         </div>
       )}
-      <div className="mt-4 flex gap-2">
+      <div className="premium-action-row mt-4">
         <Button size="sm" variant="secondary" onClick={() => void loadStatus()}>
           {tr("common.refresh", "Refresh")}
         </Button>

@@ -20,7 +20,7 @@ export function OnboardingFlow() {
         <p className="premium-page-description">
           Configure business context, language style, operations, and initial data.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="premium-action-row mt-4">
           {onboardingSteps.map((item, idx) => (
             <Badge key={item} variant={idx <= step ? "accent" : "default"}>
               {idx + 1}. {item}
@@ -110,7 +110,7 @@ export function OnboardingFlow() {
         {step === 5 && (
           <div className="rounded-2xl border border-accent/40 bg-accent/10 p-5">
             <CheckCircle2 className="h-5 w-5 text-accent" />
-            <h2 className="mt-3 text-lg font-semibold">Workspace setup complete</h2>
+            <h2 className="premium-section-title mt-3">Workspace setup complete</h2>
             <p className="mt-1 text-sm text-secondary">
               Your Sysnova AI dashboard is ready with multilingual support and business
               context. You can now generate support replies, marketing copy, and API outputs.
