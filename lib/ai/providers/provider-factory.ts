@@ -6,6 +6,7 @@ import { OpenRouterProvider } from "@/lib/ai/providers/openrouter-provider";
 import { type LlmProvider, type LlmProviderName } from "@/lib/ai/types";
 
 const providerNames: LlmProviderName[] = ["gemini", "openai", "groq", "openrouter", "mock"];
+const autoFallbackOrder: LlmProviderName[] = ["openrouter", "groq", "gemini", "openai"];
 
 export function parseProviderName(value?: string | null): LlmProviderName | undefined {
   const normalized = value?.trim().toLowerCase();
@@ -31,6 +32,22 @@ function createProvider(name: string): LlmProvider {
   }
 }
 
+function isConfigured(name: LlmProviderName) {
+  switch (name) {
+    case "openrouter":
+      return Boolean(process.env.OPENROUTER_API_KEY?.trim());
+    case "groq":
+      return Boolean(process.env.GROQ_API_KEY?.trim());
+    case "gemini":
+      return Boolean(process.env.GEMINI_API_KEY?.trim());
+    case "openai":
+      return Boolean(process.env.OPENAI_API_KEY?.trim());
+    case "mock":
+    default:
+      return true;
+  }
+}
+
 export function getPrimaryProvider(): LlmProvider {
   const provider = parseProviderName(process.env.SYSNOVA_LLM_PROVIDER) ?? "mock";
   return createProvider(provider);
@@ -39,6 +56,7 @@ export function getPrimaryProvider(): LlmProvider {
 export function getProviderChain(preferredProvider?: LlmProviderName): LlmProvider[] {
   const envPrimary = parseProviderName(process.env.SYSNOVA_LLM_PROVIDER) ?? "mock";
   const envSecondary = parseProviderName(process.env.SYSNOVA_LLM_SECONDARY_PROVIDER);
+  const autoChainEnabled = process.env.SYSNOVA_AUTO_PROVIDER_CHAIN !== "0";
 
   const orderedNames: LlmProviderName[] = [];
   const pushProvider = (name?: LlmProviderName) => {
@@ -50,6 +68,13 @@ export function getProviderChain(preferredProvider?: LlmProviderName): LlmProvid
   pushProvider(envPrimary);
   if (envSecondary && envSecondary !== "mock") {
     pushProvider(envSecondary);
+  }
+  if (autoChainEnabled) {
+    for (const providerName of autoFallbackOrder) {
+      if (isConfigured(providerName)) {
+        pushProvider(providerName);
+      }
+    }
   }
 
   if (!orderedNames.length || orderedNames[0] === "mock") {

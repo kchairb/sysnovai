@@ -2,6 +2,7 @@ import { catalogProducts, knowledgeItems, workspaceFaqs } from "@/lib/mock-data"
 import { type RagRequest, type RetrievedContext } from "@/lib/ai/types";
 import { tunisianLifeKnowledge } from "@/lib/tunisian-life-knowledge";
 import { getWorkspaceContext } from "@/lib/workspace-context";
+import { getBrandProfile } from "@/lib/server/brand-profile";
 import {
   listBrandKnowledgeEntries,
   type BrandKnowledgeEntryRecord
@@ -29,6 +30,7 @@ function hasAnyToken(query: string, tokens: string[]) {
 export async function retrieveContext(input: RagRequest): Promise<RetrievedContext> {
   const query = normalize(input.message);
   const workspaceContext = getWorkspaceContext(input.workspaceId);
+  const brandProfile = await getBrandProfile(input.workspaceId).catch(() => null);
   const brandEntries: BrandKnowledgeEntryRecord[] = await listBrandKnowledgeEntries({
     workspaceId: input.workspaceId,
     includeInactive: false,
@@ -47,6 +49,15 @@ export async function retrieveContext(input: RagRequest): Promise<RetrievedConte
   const brandDocuments = brandEntries
     .filter((entry) => entry.category === "document" || entry.category === "brand")
     .map((entry) => `${entry.title}: ${entry.content}`);
+  if (brandProfile?.context) {
+    brandDocuments.unshift(`Brand context: ${brandProfile.context}`);
+  }
+  if (brandProfile?.websiteUrl) {
+    brandDocuments.unshift(`Website: ${brandProfile.websiteUrl}`);
+  }
+  if (brandProfile?.instagram) {
+    brandDocuments.unshift(`Instagram: ${brandProfile.instagram}`);
+  }
   const sourceFaqs = workspaceContext.faqs.length ? workspaceContext.faqs : workspaceFaqs;
   const sourcePolicies = workspaceContext.policies.length
     ? workspaceContext.policies

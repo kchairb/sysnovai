@@ -19,6 +19,16 @@ type BrandKnowledgeEntry = {
   updatedAt: string;
 };
 
+type BrandProfile = {
+  workspaceId: string;
+  brandName: string;
+  websiteUrl: string;
+  instagram: string;
+  defaultMode: "general" | "support" | "sales" | "marketing" | "tunisian-assistant";
+  context: string;
+  updatedAt: string;
+};
+
 const categories: BrandKnowledgeEntry["category"][] = ["brand", "faq", "policy", "product", "document"];
 
 export default function KnowledgePage() {
@@ -43,6 +53,22 @@ export default function KnowledgePage() {
   const [testing, setTesting] = useState(false);
   const [testReply, setTestReply] = useState("");
   const [testMeta, setTestMeta] = useState<{ provider?: string; model?: string } | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [brandProfile, setBrandProfile] = useState<BrandProfile>({
+    workspaceId: "workspace-default",
+    brandName: "My Brand",
+    websiteUrl: "",
+    instagram: "",
+    defaultMode: "support",
+    context: "",
+    updatedAt: new Date().toISOString()
+  });
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [popupInput, setPopupInput] = useState("");
+  const [popupSending, setPopupSending] = useState(false);
+  const [popupMessages, setPopupMessages] = useState<
+    Array<{ id: string; role: "user" | "assistant"; content: string }>
+  >([]);
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -64,6 +90,16 @@ export default function KnowledgePage() {
     }
   };
 
+  const loadBrandProfile = async () => {
+    const response = await fetch(`/api/brand-profile?workspaceId=${encodeURIComponent(workspaceId)}`);
+    if (!response.ok) return;
+    const payload = (await response.json()) as { profile?: BrandProfile };
+    if (payload.profile) {
+      setBrandProfile(payload.profile);
+      setTestMode(payload.profile.defaultMode);
+    }
+  };
+
   useEffect(() => {
     const selected = getSelectedWorkspaceId();
     setWorkspaceId(selected);
@@ -77,6 +113,7 @@ export default function KnowledgePage() {
 
   useEffect(() => {
     void loadEntries();
+    void loadBrandProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
@@ -180,7 +217,8 @@ export default function KnowledgePage() {
   };
 
   const onIngestLinks = async () => {
-    if (!ingestUrls.trim()) return;
+    const sourceUrls = ingestUrls.trim() || brandProfile.websiteUrl.trim();
+    if (!sourceUrls) return;
     setIngesting(true);
     setIngestReport("");
     try {
@@ -189,7 +227,7 @@ export default function KnowledgePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId,
-          urls: ingestUrls,
+          urls: sourceUrls,
           crawlSite,
           maxPagesPerSite
         })
@@ -234,6 +272,30 @@ export default function KnowledgePage() {
     }
   };
 
+  const onSaveBrandProfile = async () => {
+    setProfileSaving(true);
+    try {
+      const response = await fetch("/api/brand-profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          brandName: brandProfile.brandName,
+          websiteUrl: brandProfile.websiteUrl,
+          instagram: brandProfile.instagram,
+          defaultMode: brandProfile.defaultMode,
+          context: brandProfile.context
+        })
+      });
+      if (!response.ok) {
+        throw new Error(tr("settings.saveFailed", "Failed to save settings."));
+      }
+      await loadBrandProfile();
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const onTestBrandAssistant = async () => {
     if (!testPrompt.trim()) return;
     setTesting(true);
@@ -267,6 +329,37 @@ export default function KnowledgePage() {
     }
   };
 
+  const onSendPopupMessage = async () => {
+    const message = popupInput.trim();
+    if (!message || popupSending) return;
+    const userId = `u-${Date.now()}`;
+    const aiId = `a-${Date.now()}`;
+    setPopupMessages((prev) => [
+      ...prev,
+      { id: userId, role: "user", content: message },
+      { id: aiId, role: "assistant", content: tr("workspace.generating", "Generating...") }
+    ]);
+    setPopupInput("");
+    setPopupSending(true);
+    try {
+      const response = await fetch("/api/chat/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          prompt: message,
+          language: testLanguage,
+          mode: testMode
+        })
+      });
+      const payload = (await response.json()) as { reply?: string; error?: string };
+      const text = response.ok ? payload.reply ?? "No response." : payload.error ?? "Failed";
+      setPopupMessages((prev) => prev.map((item) => (item.id === aiId ? { ...item, content: text } : item)));
+    } finally {
+      setPopupSending(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <section className="dashboard-hero-surface premium-page-hero">
@@ -284,6 +377,74 @@ export default function KnowledgePage() {
           <Badge>
             {tr("common.workspace", "Workspace")}: {workspaceId}
           </Badge>
+        </div>
+      </section>
+
+      <section className="premium-panel p-4">
+        <h2 className="text-lg font-medium">{tr("knowledge.brandSetup", "Step 1: Brand setup")}</h2>
+        <p className="mt-1 text-sm text-secondary">
+          {tr(
+            "knowledge.brandSetupDescription",
+            "Create your brand profile once. Crawling and chatbot testing will use this context automatically."
+          )}
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Input
+            value={brandProfile.brandName}
+            onChange={(event) => setBrandProfile((prev) => ({ ...prev, brandName: event.target.value }))}
+            placeholder={tr("knowledge.brandName", "Brand name")}
+          />
+          <Input
+            value={brandProfile.websiteUrl}
+            onChange={(event) => setBrandProfile((prev) => ({ ...prev, websiteUrl: event.target.value }))}
+            placeholder={tr("knowledge.websiteUrl", "Website URL")}
+          />
+          <Input
+            value={brandProfile.instagram}
+            onChange={(event) => setBrandProfile((prev) => ({ ...prev, instagram: event.target.value }))}
+            placeholder={tr("knowledge.instagram", "Instagram handle/link")}
+          />
+          <select
+            value={brandProfile.defaultMode}
+            onChange={(event) =>
+              setBrandProfile((prev) => ({
+                ...prev,
+                defaultMode: event.target.value as BrandProfile["defaultMode"]
+              }))
+            }
+            className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
+          >
+            <option value="general">General Assistant</option>
+            <option value="support">Support Assistant</option>
+            <option value="sales">Sales Assistant</option>
+            <option value="marketing">Marketing Assistant</option>
+            <option value="tunisian-assistant">Tunisian Assistant</option>
+          </select>
+        </div>
+        <Textarea
+          value={brandProfile.context}
+          onChange={(event) => setBrandProfile((prev) => ({ ...prev, context: event.target.value }))}
+          className="mt-2 min-h-[110px]"
+          placeholder={tr(
+            "knowledge.brandContext",
+            "Brand context: products, tone, shipping, returns, payment, audience, contact style..."
+          )}
+        />
+        <div className="mt-2 flex gap-2">
+          <Button size="sm" onClick={() => void onSaveBrandProfile()} disabled={profileSaving}>
+            {profileSaving ? tr("common.saving", "Saving...") : tr("common.save", "Save")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (brandProfile.websiteUrl.trim()) {
+                setIngestUrls(brandProfile.websiteUrl.trim());
+              }
+            }}
+          >
+            {tr("knowledge.useWebsiteForCrawl", "Use website URL in crawler")}
+          </Button>
         </div>
       </section>
 
@@ -357,9 +518,14 @@ export default function KnowledgePage() {
             )}
           />
           <div className="mt-2 flex items-center justify-between gap-2">
-            <Button size="sm" onClick={() => void onTestBrandAssistant()} disabled={testing}>
-              {testing ? tr("workspace.generating", "Generating...") : tr("knowledge.testNow", "Test now")}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => void onTestBrandAssistant()} disabled={testing}>
+                {testing ? tr("workspace.generating", "Generating...") : tr("knowledge.testNow", "Test now")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPopupOpen(true)}>
+                {tr("knowledge.openPopupPreview", "Open popup preview")}
+              </Button>
+            </div>
             {testMeta?.provider && (
               <p className="text-xs text-muted">
                 {testMeta.provider}/{testMeta.model ?? "default"}
@@ -535,6 +701,50 @@ export default function KnowledgePage() {
           </div>
         </article>
       </section>
+      {popupOpen && (
+        <div className="fixed inset-0 z-[120] bg-black/30 p-4">
+          <div className="ml-auto mt-auto flex h-[70vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <p className="text-sm font-semibold">{brandProfile.brandName || "Brand"} Chat Preview</p>
+              <Button size="sm" variant="outline" onClick={() => setPopupOpen(false)}>
+                {tr("common.close", "Close")}
+              </Button>
+            </div>
+            <div className="flex-1 space-y-2 overflow-y-auto p-3">
+              {!popupMessages.length && (
+                <p className="text-xs text-muted">
+                  {tr("knowledge.popupHint", "Type a message to simulate the website popup chatbot.")}
+                </p>
+              )}
+              {popupMessages.map((item) => (
+                <div
+                  key={item.id}
+                  className={`max-w-[90%] rounded-xl border px-3 py-2 text-sm ${
+                    item.role === "user"
+                      ? "ml-auto border-accent/40 bg-accent/10"
+                      : "border-border/70 bg-elevated/20"
+                  }`}
+                >
+                  {item.content}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-border p-3">
+              <Textarea
+                value={popupInput}
+                onChange={(event) => setPopupInput(event.target.value)}
+                className="min-h-[74px]"
+                placeholder={tr("common.typeMessage", "Type message...")}
+              />
+              <div className="mt-2 flex justify-end">
+                <Button size="sm" onClick={() => void onSendPopupMessage()} disabled={popupSending}>
+                  {popupSending ? tr("common.sending", "Sending...") : tr("common.send", "Send")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

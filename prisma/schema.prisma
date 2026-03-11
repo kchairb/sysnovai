@@ -33,6 +33,7 @@ model Workspace {
   chats        WorkspaceChat[]
   settings     WorkspaceSettings?
   invites      InviteToken[]
+  brandProfile BrandProfile?
   brandKnowledge BrandKnowledgeEntry[]
 }
 
@@ -186,6 +187,18 @@ model BrandKnowledgeEntry {
 
   @@index([workspaceId, isActive, updatedAt(sort: Desc)])
   @@index([workspaceId, category, updatedAt(sort: Desc)])
+}
+
+model BrandProfile {
+  id           String    @id @default(cuid())
+  workspaceId  String    @unique
+  brandName    String
+  websiteUrl   String?
+  instagram    String?
+  defaultMode  String    @default("support")
+  context      String?
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model TunisianLearningCandidate {
