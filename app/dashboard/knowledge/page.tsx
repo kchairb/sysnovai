@@ -70,6 +70,7 @@ export default function KnowledgePage() {
   const [popupMessages, setPopupMessages] = useState<
     Array<{ id: string; role: "user" | "assistant"; content: string }>
   >([]);
+  const [activeFlowStep, setActiveFlowStep] = useState<"setup" | "learn" | "test">("setup");
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -143,6 +144,14 @@ export default function KnowledgePage() {
       count: activeEntries.filter((entry) => entry.category === category).length
     }));
   }, [activeEntries]);
+  const hasBrandSetup = useMemo(
+    () =>
+      Boolean(brandProfile.brandName.trim()) &&
+      (Boolean(brandProfile.websiteUrl.trim()) || Boolean(brandProfile.context.trim())),
+    [brandProfile]
+  );
+  const hasLearnedData = activeEntries.length > 0;
+  const hasTested = Boolean(testReply.trim());
 
   const resetForm = () => {
     setEditingId(null);
@@ -394,6 +403,71 @@ export default function KnowledgePage() {
       </section>
 
       <section className="premium-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-medium">
+              {tr("knowledge.workflowTitle", "Brand assistant workflow")}
+            </h2>
+            <p className="text-sm text-secondary">
+              {tr(
+                "knowledge.workflowDescription",
+                "Follow these steps: set brand profile, crawl links, then validate with chat test."
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={activeFlowStep === "setup" ? "default" : "outline"}
+              onClick={() => setActiveFlowStep("setup")}
+            >
+              1. {tr("knowledge.stepSetup", "Setup")}
+            </Button>
+            <Button
+              size="sm"
+              variant={activeFlowStep === "learn" ? "default" : "outline"}
+              onClick={() => setActiveFlowStep("learn")}
+            >
+              2. {tr("knowledge.stepLearn", "Learn")}
+            </Button>
+            <Button
+              size="sm"
+              variant={activeFlowStep === "test" ? "default" : "outline"}
+              onClick={() => setActiveFlowStep("test")}
+            >
+              3. {tr("knowledge.stepTest", "Test")}
+            </Button>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted">Setup</p>
+            <p className="mt-1 text-sm font-medium">
+              {hasBrandSetup
+                ? tr("knowledge.setupDone", "Brand profile configured")
+                : tr("knowledge.setupPending", "Brand profile not complete")}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted">Learn</p>
+            <p className="mt-1 text-sm font-medium">
+              {hasLearnedData
+                ? tr("knowledge.learnDone", "Knowledge entries available")
+                : tr("knowledge.learnPending", "No active learned entries yet")}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-elevated/20 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted">Test</p>
+            <p className="mt-1 text-sm font-medium">
+              {hasTested
+                ? tr("knowledge.testDone", "Assistant tested")
+                : tr("knowledge.testPending", "Run a quick chat test")}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="premium-panel p-4">
         <h2 className="text-lg font-medium">{tr("knowledge.brandSetup", "Step 1: Brand setup")}</h2>
         <p className="mt-1 text-sm text-secondary">
           {tr(
@@ -460,6 +534,25 @@ export default function KnowledgePage() {
           </Button>
         </div>
         {!!profileReport && <p className="mt-2 text-xs text-muted">{profileReport}</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setBrandProfile((prev) => ({
+                ...prev,
+                context:
+                  prev.context ||
+                  "Tone: premium and reassuring. Delivery: Tunisia-wide 24-72h. Returns: accepted within 7 days for eligible items. Payments: cash on delivery and card."
+              }))
+            }
+          >
+            {tr("knowledge.fillContextTemplate", "Fill context template")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("learn")}>
+            {tr("knowledge.nextLearn", "Next: Crawl and learn")}
+          </Button>
+        </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
@@ -531,6 +624,24 @@ export default function KnowledgePage() {
               "Example: What are your delivery and return conditions in Tunisia?"
             )}
           />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTestPrompt("What are your delivery and return conditions in Tunisia?")}
+            >
+              {tr("knowledge.quickTestSupport", "Quick support test")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setTestPrompt("Recommend 2 best products for a premium gift with short reasons.")
+              }
+            >
+              {tr("knowledge.quickTestProducts", "Quick product test")}
+            </Button>
+          </div>
           <div className="mt-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={() => void onTestBrandAssistant()} disabled={testing}>
@@ -647,6 +758,9 @@ export default function KnowledgePage() {
                 {ingesting
                   ? tr("knowledge.ingesting", "Ingesting...")
                   : tr("knowledge.ingestLinks", "Ingest links")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("test")}>
+                {tr("knowledge.nextTest", "Next: Test assistant")}
               </Button>
               {!!ingestReport && <p className="text-xs text-muted">{ingestReport}</p>}
             </div>
