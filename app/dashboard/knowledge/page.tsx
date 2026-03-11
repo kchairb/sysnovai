@@ -38,12 +38,14 @@ export default function KnowledgePage() {
   const [entries, setEntries] = useState<BrandKnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deduping, setDeduping] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | BrandKnowledgeEntry["category"]>("all");
   const [ingestUrls, setIngestUrls] = useState("");
   const [ingesting, setIngesting] = useState(false);
   const [ingestReport, setIngestReport] = useState<string>("");
+  const [dedupeReport, setDedupeReport] = useState<string>("");
   const [ingestDetails, setIngestDetails] = useState<
     Array<{
       url: string;
@@ -156,6 +158,21 @@ export default function KnowledgePage() {
       count: activeEntries.filter((entry) => entry.category === category).length
     }));
   }, [activeEntries]);
+  const duplicateEstimate = useMemo(() => {
+    const seen = new Set<string>();
+    let duplicates = 0;
+    for (const entry of entries) {
+      const fingerprint = `${entry.category}|${entry.title.trim().toLowerCase()}|${entry.content
+        .trim()
+        .toLowerCase()}`;
+      if (seen.has(fingerprint)) {
+        duplicates += 1;
+      } else {
+        seen.add(fingerprint);
+      }
+    }
+    return duplicates;
+  }, [entries]);
   const hasBrandSetup = useMemo(
     () =>
       Boolean(brandProfile.brandName.trim()) &&
@@ -164,6 +181,8 @@ export default function KnowledgePage() {
   );
   const hasLearnedData = activeEntries.length > 0;
   const hasTested = Boolean(testReply.trim());
+  const workflowProgress = (hasBrandSetup ? 1 : 0) + (hasLearnedData ? 1 : 0) + (hasTested ? 1 : 0);
+  const workflowProgressPercent = Math.round((workflowProgress / 3) * 100);
 
   const resetForm = () => {
     setEditingId(null);
@@ -310,6 +329,41 @@ export default function KnowledgePage() {
     }
   };
 
+  const onDedupeExisting = async () => {
+    setDeduping(true);
+    setDedupeReport("");
+    try {
+      const response = await fetch("/api/brand-knowledge/dedupe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId })
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        removed?: number;
+        remaining?: number;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? tr("knowledge.dedupeFailed", "Failed to deduplicate entries."));
+      }
+      setDedupeReport(
+        `${tr("knowledge.dedupeDone", "Deduplication done")}: ${tr(
+          "knowledge.removed",
+          "Removed"
+        )} ${payload.removed ?? 0}, ${tr("knowledge.remaining", "Remaining")} ${payload.remaining ?? 0}.`
+      );
+      await loadEntries();
+    } catch (error) {
+      setDedupeReport(
+        error instanceof Error
+          ? error.message
+          : tr("knowledge.dedupeFailed", "Failed to deduplicate entries.")
+      );
+    } finally {
+      setDeduping(false);
+    }
+  };
+
   const onSaveBrandProfile = async () => {
     setProfileSaving(true);
     setProfileReport("");
@@ -438,58 +492,77 @@ export default function KnowledgePage() {
               )}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={activeFlowStep === "setup" ? "default" : "outline"}
-              onClick={() => setActiveFlowStep("setup")}
-            >
-              {hasBrandSetup ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Circle className="mr-1 h-3.5 w-3.5" />}
-              1. {tr("knowledge.stepSetup", "Setup")}
-            </Button>
-            <Button
-              size="sm"
-              variant={activeFlowStep === "learn" ? "default" : "outline"}
-              onClick={() => setActiveFlowStep("learn")}
-            >
-              {hasLearnedData ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Circle className="mr-1 h-3.5 w-3.5" />}
-              2. {tr("knowledge.stepLearn", "Learn")}
-            </Button>
-            <Button
-              size="sm"
-              variant={activeFlowStep === "test" ? "default" : "outline"}
-              onClick={() => setActiveFlowStep("test")}
-            >
-              {hasTested ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : <Circle className="mr-1 h-3.5 w-3.5" />}
-              3. {tr("knowledge.stepTest", "Test")}
-            </Button>
+          <div className="min-w-[220px] rounded-xl border border-border/70 bg-elevated/20 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted">
+              {tr("knowledge.workflowProgress", "Workflow progress")}
+            </p>
+            <p className="mt-0.5 text-sm font-semibold">{workflowProgressPercent}%</p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/70">
+              <div
+                className="h-full rounded-full bg-accent transition-all duration-300"
+                style={{ width: `${workflowProgressPercent}%` }}
+              />
+            </div>
           </div>
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/70 bg-elevated/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted">Setup</p>
+          <button
+            type="button"
+            onClick={() => setActiveFlowStep("setup")}
+            className={`rounded-xl border p-3 text-left transition ${
+              activeFlowStep === "setup"
+                ? "border-accent/40 bg-accent/10"
+                : "border-border/70 bg-elevated/20 hover:border-accent/25"
+            }`}
+          >
+            <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
+              {hasBrandSetup ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+              1. {tr("knowledge.stepSetup", "Setup")}
+            </p>
             <p className="mt-1 text-sm font-medium">
               {hasBrandSetup
                 ? tr("knowledge.setupDone", "Brand profile configured")
                 : tr("knowledge.setupPending", "Brand profile not complete")}
             </p>
-          </div>
-          <div className="rounded-xl border border-border/70 bg-elevated/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted">Learn</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFlowStep("learn")}
+            className={`rounded-xl border p-3 text-left transition ${
+              activeFlowStep === "learn"
+                ? "border-accent/40 bg-accent/10"
+                : "border-border/70 bg-elevated/20 hover:border-accent/25"
+            }`}
+          >
+            <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
+              {hasLearnedData ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+              2. {tr("knowledge.stepLearn", "Learn")}
+            </p>
             <p className="mt-1 text-sm font-medium">
               {hasLearnedData
                 ? tr("knowledge.learnDone", "Knowledge entries available")
                 : tr("knowledge.learnPending", "No active learned entries yet")}
             </p>
-          </div>
-          <div className="rounded-xl border border-border/70 bg-elevated/20 p-3">
-            <p className="text-xs uppercase tracking-wide text-muted">Test</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFlowStep("test")}
+            className={`rounded-xl border p-3 text-left transition ${
+              activeFlowStep === "test"
+                ? "border-accent/40 bg-accent/10"
+                : "border-border/70 bg-elevated/20 hover:border-accent/25"
+            }`}
+          >
+            <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
+              {hasTested ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+              3. {tr("knowledge.stepTest", "Test")}
+            </p>
             <p className="mt-1 text-sm font-medium">
               {hasTested
                 ? tr("knowledge.testDone", "Assistant tested")
                 : tr("knowledge.testPending", "Run a quick chat test")}
             </p>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -584,94 +657,215 @@ export default function KnowledgePage() {
       )}
 
       {activeFlowStep === "learn" && (
-      <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+      <section className="space-y-4">
         <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">
-            {tr("knowledge.learningStatus", "Learning status")}
-          </h2>
-          <p className="mt-1 text-sm text-secondary">
-            {tr(
-              "knowledge.learningStatusDescription",
-              "This shows what your assistant currently knows from active brand entries."
-            )}
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-medium">{tr("knowledge.learningStatus", "Learning status")}</h2>
+              <p className="mt-1 text-sm text-secondary">
+                {tr(
+                  "knowledge.learningStatusDescription",
+                  "This shows what your assistant currently knows from active brand entries."
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={duplicateEstimate > 0 ? "default" : "accent"}>
+                {tr("knowledge.duplicateEstimate", "Duplicate candidates")}: {duplicateEstimate}
+              </Badge>
+              <Button size="sm" variant="outline" onClick={() => void onDedupeExisting()} disabled={deduping}>
+                {deduping ? tr("knowledge.deduping", "Cleaning...") : tr("knowledge.dedupeNow", "Clean duplicates")}
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {categoryCounts.map((item) => (
-              <div key={item.category} className="rounded-xl border border-border/70 bg-elevated/20 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide text-muted">{item.category}</p>
+              <div key={item.category} className="premium-subpanel px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted">{item.category}</p>
                 <p className="text-lg font-semibold">{item.count}</p>
               </div>
             ))}
+            <div className="premium-subpanel border-accent/30 bg-accent/10 px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted">
+                {tr("knowledge.totalActiveEntries", "Total active")}
+              </p>
+              <p className="text-lg font-semibold">{activeEntries.length}</p>
+            </div>
           </div>
-          <div className="mt-3 rounded-xl border border-border/70 bg-elevated/20 p-3">
-            <p className="text-xs text-muted">
-              {tr("knowledge.totalActiveEntries", "Total active entries")}:
-            </p>
-            <p className="text-xl font-semibold">{activeEntries.length}</p>
-          </div>
+          {!!dedupeReport && <p className="mt-2 text-xs text-muted">{dedupeReport}</p>}
         </article>
-        <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
-          <p className="mt-1 text-sm text-secondary">
-            {tr(
-              "knowledge.reviewEntriesDescription",
-              "Review, edit, activate/deactivate, and clean learned entries before client-facing usage."
-            )}
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={tr("common.search", "Search")}
-              className="h-9 w-44"
-            />
-            <select
-              value={categoryFilter}
-              onChange={(event) =>
-                setCategoryFilter(event.target.value as "all" | BrandKnowledgeEntry["category"])
-              }
-              className="h-9 rounded-md border border-border/70 bg-elevated/30 px-2 text-xs"
-            >
-              <option value="all">{tr("common.all", "All")}</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="mt-3 space-y-2">
-            {loading && <p className="text-xs text-muted">{tr("common.loading", "Loading...")}</p>}
-            {!loading && !filteredEntries.length && (
-              <p className="text-xs text-muted">{tr("common.noData", "No data yet.")}</p>
-            )}
-            {filteredEntries.slice(0, 8).map((entry) => (
-              <article key={entry.id} className="rounded-xl border border-border/70 bg-elevated/20 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">{entry.title}</p>
-                  <div className="flex items-center gap-1">
-                    <Badge>{entry.category}</Badge>
-                    <Badge variant={entry.isActive ? "accent" : "default"}>
-                      {entry.isActive ? tr("common.active", "Active") : tr("common.inactive", "Inactive")}
-                    </Badge>
+        <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
+          <article className="premium-panel p-4">
+            <h2 className="text-lg font-medium">
+              {editingId ? tr("knowledge.editEntry", "Edit entry") : tr("knowledge.newEntry", "New entry")}
+            </h2>
+            <div className="mt-3 space-y-2">
+              <select
+                value={form.category}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, category: event.target.value as BrandKnowledgeEntry["category"] }))
+                }
+                className="h-10 w-full rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <Input
+                value={form.title}
+                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                placeholder={tr("knowledge.entryTitle", "Title")}
+              />
+              <Textarea
+                value={form.content}
+                onChange={(event) => setForm((prev) => ({ ...prev, content: event.target.value }))}
+                placeholder={tr("knowledge.entryContent", "Content")}
+                className="min-h-[140px]"
+              />
+              <Input
+                value={form.tags}
+                onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
+                placeholder={tr("knowledge.entryTags", "Tags (comma separated)")}
+              />
+              <div className="flex gap-2">
+                <Button onClick={() => void onSubmit()} disabled={saving}>
+                  {saving
+                    ? tr("common.saving", "Saving...")
+                    : editingId
+                      ? tr("common.update", "Update")
+                      : tr("common.create", "Create")}
+                </Button>
+                {editingId && (
+                  <Button variant="outline" onClick={resetForm}>
+                    {tr("common.cancel", "Cancel")}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-border/70 bg-elevated/20 p-3">
+              <p className="text-sm font-semibold">
+                {tr("knowledge.linkIngestion", "Learn from website/social links")}
+              </p>
+              <Textarea
+                value={ingestUrls}
+                onChange={(event) => setIngestUrls(event.target.value)}
+                className="mt-2 min-h-[90px]"
+                placeholder={tr(
+                  "knowledge.linkIngestionPlaceholder",
+                  "Paste one URL per line (website pages, product pages, social profile links)"
+                )}
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                  <input
+                    type="checkbox"
+                    checked={crawlSite}
+                    onChange={(event) => setCrawlSite(event.target.checked)}
+                  />
+                  {tr("knowledge.crawlWholeSite", "Crawl internal pages")}
+                </label>
+                <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                  {tr("knowledge.maxPages", "Max pages")}
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={maxPagesPerSite}
+                    onChange={(event) => setMaxPagesPerSite(Number(event.target.value || 10))}
+                    className="h-8 w-16 rounded-md border border-border/70 bg-elevated/30 px-2"
+                  />
+                </label>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <Button size="sm" onClick={() => void onIngestLinks()} disabled={ingesting}>
+                  {ingesting
+                    ? tr("knowledge.ingesting", "Ingesting...")
+                    : tr("knowledge.ingestLinks", "Ingest links")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("test")}>
+                  {tr("knowledge.nextTest", "Next: Test assistant")}
+                </Button>
+                {!!ingestReport && <p className="text-xs text-muted">{ingestReport}</p>}
+              </div>
+              {!!ingestDetails.length && (
+                <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/70 bg-elevated/15 p-2">
+                  {ingestDetails.map((item) => (
+                    <p key={`${item.url}-${item.ok ? "ok" : "err"}`} className="text-xs text-secondary">
+                      {item.ok
+                        ? `${item.url} -> pages:${item.pagesCrawled ?? 0}, +${item.entriesCreated ?? 0}, ~${item.entriesUpdated ?? 0}, =${item.entriesSkipped ?? 0}`
+                        : `${item.url} -> ${item.error ?? "failed"}`}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </article>
+
+          <article className="premium-panel p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-medium">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
+              <div className="flex gap-2">
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={tr("common.search", "Search")}
+                  className="h-9 w-44"
+                />
+                <select
+                  value={categoryFilter}
+                  onChange={(event) =>
+                    setCategoryFilter(event.target.value as "all" | BrandKnowledgeEntry["category"])
+                  }
+                  className="h-9 rounded-md border border-border/70 bg-elevated/30 px-2 text-xs"
+                >
+                  <option value="all">{tr("common.all", "All")}</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {loading && <p className="text-xs text-muted">{tr("common.loading", "Loading...")}</p>}
+              {!loading && !filteredEntries.length && (
+                <p className="text-xs text-muted">{tr("common.noData", "No data yet.")}</p>
+              )}
+              {filteredEntries.map((entry) => (
+                <article key={entry.id} className="rounded-xl border border-border/70 bg-elevated/20 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">{entry.title}</p>
+                    <div className="flex items-center gap-1">
+                      <Badge>{entry.category}</Badge>
+                      <Badge variant={entry.isActive ? "accent" : "default"}>
+                        {entry.isActive ? tr("common.active", "Active") : tr("common.inactive", "Inactive")}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-                <p className="mt-1 text-sm text-secondary">{entry.content}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => onEdit(entry)}>
-                    {tr("common.edit", "Edit")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void onToggleActive(entry)}>
-                    {entry.isActive ? tr("common.deactivate", "Deactivate") : tr("common.activate", "Activate")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void onDelete(entry)}>
-                    {tr("common.delete", "Delete")}
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </article>
+                  <p className="mt-1 text-sm text-secondary">{entry.content}</p>
+                  {!!entry.tags.length && (
+                    <p className="mt-1 text-xs text-muted">#{entry.tags.join(" #")}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => onEdit(entry)}>
+                      {tr("common.edit", "Edit")}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => void onToggleActive(entry)}>
+                      {entry.isActive ? tr("common.deactivate", "Deactivate") : tr("common.activate", "Activate")}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => void onDelete(entry)}>
+                      {tr("common.delete", "Delete")}
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </article>
+        </section>
       </section>
       )}
 
@@ -764,180 +958,6 @@ export default function KnowledgePage() {
       </section>
       )}
 
-      {activeFlowStep === "learn" && (
-      <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
-        <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">
-            {editingId ? tr("knowledge.editEntry", "Edit entry") : tr("knowledge.newEntry", "New entry")}
-          </h2>
-          <div className="mt-3 space-y-2">
-            <select
-              value={form.category}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, category: event.target.value as BrandKnowledgeEntry["category"] }))
-              }
-              className="h-10 w-full rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
-            >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <Input
-              value={form.title}
-              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-              placeholder={tr("knowledge.entryTitle", "Title")}
-            />
-            <Textarea
-              value={form.content}
-              onChange={(event) => setForm((prev) => ({ ...prev, content: event.target.value }))}
-              placeholder={tr("knowledge.entryContent", "Content")}
-              className="min-h-[140px]"
-            />
-            <Input
-              value={form.tags}
-              onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
-              placeholder={tr("knowledge.entryTags", "Tags (comma separated)")}
-            />
-            <div className="flex gap-2">
-              <Button onClick={() => void onSubmit()} disabled={saving}>
-                {saving
-                  ? tr("common.saving", "Saving...")
-                  : editingId
-                    ? tr("common.update", "Update")
-                    : tr("common.create", "Create")}
-              </Button>
-              {editingId && (
-                <Button variant="outline" onClick={resetForm}>
-                  {tr("common.cancel", "Cancel")}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-border/70 bg-elevated/20 p-3">
-            <p className="text-sm font-semibold">
-              {tr("knowledge.linkIngestion", "Learn from website/social links")}
-            </p>
-            <Textarea
-              value={ingestUrls}
-              onChange={(event) => setIngestUrls(event.target.value)}
-              className="mt-2 min-h-[90px]"
-              placeholder={tr(
-                "knowledge.linkIngestionPlaceholder",
-                "Paste one URL per line (website pages, product pages, social profile links)"
-              )}
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-xs text-secondary">
-                <input
-                  type="checkbox"
-                  checked={crawlSite}
-                  onChange={(event) => setCrawlSite(event.target.checked)}
-                />
-                {tr("knowledge.crawlWholeSite", "Crawl internal pages")}
-              </label>
-              <label className="inline-flex items-center gap-2 text-xs text-secondary">
-                {tr("knowledge.maxPages", "Max pages")}
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={maxPagesPerSite}
-                  onChange={(event) => setMaxPagesPerSite(Number(event.target.value || 10))}
-                  className="h-8 w-16 rounded-md border border-border/70 bg-elevated/30 px-2"
-                />
-              </label>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <Button size="sm" onClick={() => void onIngestLinks()} disabled={ingesting}>
-                {ingesting
-                  ? tr("knowledge.ingesting", "Ingesting...")
-                  : tr("knowledge.ingestLinks", "Ingest links")}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("test")}>
-                {tr("knowledge.nextTest", "Next: Test assistant")}
-              </Button>
-              {!!ingestReport && <p className="text-xs text-muted">{ingestReport}</p>}
-            </div>
-            {!!ingestDetails.length && (
-              <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/70 bg-elevated/15 p-2">
-                {ingestDetails.map((item) => (
-                  <p key={`${item.url}-${item.ok ? "ok" : "err"}`} className="text-xs text-secondary">
-                    {item.ok
-                      ? `${item.url} -> pages:${item.pagesCrawled ?? 0}, +${item.entriesCreated ?? 0}, ~${item.entriesUpdated ?? 0}, =${item.entriesSkipped ?? 0}`
-                      : `${item.url} -> ${item.error ?? "failed"}`}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
-        </article>
-
-        <article className="premium-panel p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-medium">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
-            <div className="flex gap-2">
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={tr("common.search", "Search")}
-                className="h-9 w-44"
-              />
-              <select
-                value={categoryFilter}
-                onChange={(event) =>
-                  setCategoryFilter(event.target.value as "all" | BrandKnowledgeEntry["category"])
-                }
-                className="h-9 rounded-md border border-border/70 bg-elevated/30 px-2 text-xs"
-              >
-                <option value="all">{tr("common.all", "All")}</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {loading && <p className="text-xs text-muted">{tr("common.loading", "Loading...")}</p>}
-            {!loading && !filteredEntries.length && (
-              <p className="text-xs text-muted">{tr("common.noData", "No data yet.")}</p>
-            )}
-            {filteredEntries.map((entry) => (
-              <article key={entry.id} className="rounded-xl border border-border/70 bg-elevated/20 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium">{entry.title}</p>
-                  <div className="flex items-center gap-1">
-                    <Badge>{entry.category}</Badge>
-                    <Badge variant={entry.isActive ? "accent" : "default"}>
-                      {entry.isActive ? tr("common.active", "Active") : tr("common.inactive", "Inactive")}
-                    </Badge>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm text-secondary">{entry.content}</p>
-                {!!entry.tags.length && (
-                  <p className="mt-1 text-xs text-muted">#{entry.tags.join(" #")}</p>
-                )}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => onEdit(entry)}>
-                    {tr("common.edit", "Edit")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void onToggleActive(entry)}>
-                    {entry.isActive ? tr("common.deactivate", "Deactivate") : tr("common.activate", "Activate")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void onDelete(entry)}>
-                    {tr("common.delete", "Delete")}
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </article>
-      </section>
-      )}
       {popupOpen && (
         <div className="fixed inset-0 z-[120] bg-black/30 p-4">
           <div className="ml-auto mt-auto flex h-[70vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">

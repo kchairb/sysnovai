@@ -322,3 +322,72 @@ export async function deleteBrandKnowledgeEntry(input: { id: string; workspaceId
     (entry) => !(entry.id === input.id && entry.workspaceId === input.workspaceId)
   );
 }
+
+export async function dedupeBrandKnowledgeEntries(input: { workspaceId: string }) {
+  if (hasDatabaseUrl()) {
+    const prisma = getPrisma();
+    const workspace = await prisma.workspace.findUnique({
+      where: { externalId: input.workspaceId },
+      select: { id: true }
+    });
+    if (!workspace) {
+      return { removed: 0, remaining: 0 };
+    }
+
+    const rows = await prisma.brandKnowledgeEntry.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        sourceUrl: true,
+        category: true,
+        title: true,
+        content: true
+      }
+    });
+
+    const seen = new Set<string>();
+    const duplicateIds: string[] = [];
+    for (const row of rows) {
+      const urlKey = row.sourceUrl?.trim().toLowerCase();
+      const contentKey = `${row.category}|${row.title.trim().toLowerCase()}|${row.content.trim().toLowerCase()}`;
+      const key = urlKey ? `url:${urlKey}` : `content:${contentKey}`;
+      if (seen.has(key)) {
+        duplicateIds.push(row.id);
+      } else {
+        seen.add(key);
+      }
+    }
+
+    if (duplicateIds.length > 0) {
+      await prisma.brandKnowledgeEntry.deleteMany({
+        where: { workspaceId: workspace.id, id: { in: duplicateIds } }
+      });
+    }
+    return {
+      removed: duplicateIds.length,
+      remaining: rows.length - duplicateIds.length
+    };
+  }
+
+  ensurePersistentStorageConfigured();
+  const store = global.__sysnovaBrandKnowledge ?? [];
+  const workspaceEntries = store.filter((entry) => entry.workspaceId === input.workspaceId);
+  const seen = new Set<string>();
+  const duplicateIds = new Set<string>();
+  for (const entry of workspaceEntries) {
+    const urlKey = entry.sourceUrl?.trim().toLowerCase();
+    const contentKey = `${entry.category}|${entry.title.trim().toLowerCase()}|${entry.content.trim().toLowerCase()}`;
+    const key = urlKey ? `url:${urlKey}` : `content:${contentKey}`;
+    if (seen.has(key)) {
+      duplicateIds.add(entry.id);
+    } else {
+      seen.add(key);
+    }
+  }
+  global.__sysnovaBrandKnowledge = store.filter((entry) => !duplicateIds.has(entry.id));
+  return {
+    removed: duplicateIds.size,
+    remaining: workspaceEntries.length - duplicateIds.size
+  };
+}
