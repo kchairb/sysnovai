@@ -19,6 +19,8 @@ type IngestResult = {
   error?: string;
 };
 
+export type CrawlStrategy = "balanced" | "products-first" | "support-first";
+
 function sanitizeText(value: string) {
   return value
     .replace(/&nbsp;/gi, " ")
@@ -201,8 +203,7 @@ function detectCategoryForUrl(url: URL): BrandKnowledgeCategory {
   return "document";
 }
 
-function linkPriorityScore(rawUrl: string) {
-  const lowered = rawUrl.toLowerCase();
+function scoreAsProductPage(lowered: string) {
   let score = 0;
   if (
     lowered.includes("/product") ||
@@ -214,6 +215,11 @@ function linkPriorityScore(rawUrl: string) {
   ) {
     score += 100;
   }
+  return score;
+}
+
+function scoreAsSupportPage(lowered: string) {
+  let score = 0;
   if (
     lowered.includes("/contact") ||
     lowered.includes("contact-us") ||
@@ -221,7 +227,7 @@ function linkPriorityScore(rawUrl: string) {
     lowered.includes("/help") ||
     lowered.includes("/about")
   ) {
-    score += 70;
+    score += 80;
   }
   if (
     lowered.includes("/faq") ||
@@ -230,8 +236,25 @@ function linkPriorityScore(rawUrl: string) {
     lowered.includes("/terms") ||
     lowered.includes("/shipping")
   ) {
-    score += 50;
+    score += 55;
   }
+  return score;
+}
+
+function linkPriorityScore(rawUrl: string, strategy: CrawlStrategy) {
+  const lowered = rawUrl.toLowerCase();
+  let score = 0;
+  const productScore = scoreAsProductPage(lowered);
+  const supportScore = scoreAsSupportPage(lowered);
+
+  if (strategy === "products-first") {
+    score += productScore * 1.25 + supportScore * 0.8;
+  } else if (strategy === "support-first") {
+    score += supportScore * 1.25 + productScore * 0.8;
+  } else {
+    score += productScore + supportScore;
+  }
+
   if (lowered.includes("?page=") || lowered.includes("/page/")) {
     score -= 8;
   }
@@ -315,9 +338,11 @@ export async function ingestBrandUrls(input: {
   crawlSite?: boolean;
   maxPagesPerSite?: number;
   brandName?: string;
+  crawlStrategy?: CrawlStrategy;
 }) {
   const urls = input.urls.slice(0, 8);
   const maxPagesPerSite = Math.min(Math.max(input.maxPagesPerSite ?? 10, 1), 50);
+  const crawlStrategy = input.crawlStrategy ?? "balanced";
   const results: IngestResult[] = [];
 
   for (const rawUrl of urls) {
@@ -448,7 +473,9 @@ export async function ingestBrandUrls(input: {
 
         if (input.crawlSite) {
           const internalLinks = extractInternalLinks(html, currentParsed);
-          internalLinks.sort((a, b) => linkPriorityScore(b) - linkPriorityScore(a));
+          internalLinks.sort(
+            (a, b) => linkPriorityScore(b, crawlStrategy) - linkPriorityScore(a, crawlStrategy)
+          );
           for (const link of internalLinks) {
             const normalizedLink = normalizeCrawlUrl(new URL(link));
             if (
@@ -459,7 +486,7 @@ export async function ingestBrandUrls(input: {
               queue.push(normalizedLink);
             }
           }
-          queue.sort((a, b) => linkPriorityScore(b) - linkPriorityScore(a));
+          queue.sort((a, b) => linkPriorityScore(b, crawlStrategy) - linkPriorityScore(a, crawlStrategy));
         }
       }
 

@@ -61,6 +61,9 @@ export default function KnowledgePage() {
   >([]);
   const [crawlSite, setCrawlSite] = useState(true);
   const [maxPagesPerSite, setMaxPagesPerSite] = useState(12);
+  const [crawlStrategy, setCrawlStrategy] = useState<
+    "balanced" | "products-first" | "support-first"
+  >("balanced");
   const [testPrompt, setTestPrompt] = useState("");
   const [testLanguage, setTestLanguage] = useState<"darija" | "ar" | "fr" | "en">("fr");
   const [testMode, setTestMode] = useState<
@@ -278,7 +281,8 @@ export default function KnowledgePage() {
           workspaceId,
           urls: sourceUrls,
           crawlSite,
-          maxPagesPerSite
+          maxPagesPerSite,
+          crawlStrategy
         })
       });
       const payload = (await response.json()) as {
@@ -786,6 +790,28 @@ export default function KnowledgePage() {
                     className="h-8 w-16 rounded-md border border-border/70 bg-elevated/30 px-2"
                   />
                 </label>
+              <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                {tr("knowledge.crawlStrategy", "Strategy")}
+                <select
+                  value={crawlStrategy}
+                  onChange={(event) =>
+                    setCrawlStrategy(
+                      event.target.value as "balanced" | "products-first" | "support-first"
+                    )
+                  }
+                  className="h-8 rounded-md border border-border/70 bg-elevated/30 px-2"
+                >
+                  <option value="balanced">
+                    {tr("knowledge.crawlStrategyBalanced", "Balanced")}
+                  </option>
+                  <option value="products-first">
+                    {tr("knowledge.crawlStrategyProducts", "Products first")}
+                  </option>
+                  <option value="support-first">
+                    {tr("knowledge.crawlStrategySupport", "Support first")}
+                  </option>
+                </select>
+              </label>
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <Button size="sm" onClick={() => void onIngestLinks()} disabled={ingesting}>

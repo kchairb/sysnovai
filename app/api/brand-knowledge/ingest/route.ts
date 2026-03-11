@@ -10,6 +10,7 @@ type IngestBody = {
   urls?: string[] | string;
   crawlSite?: boolean;
   maxPagesPerSite?: number;
+  crawlStrategy?: "balanced" | "products-first" | "support-first";
 };
 
 function parseUrls(input: IngestBody["urls"]) {
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
       urls,
       crawlSite: Boolean(body.crawlSite),
       maxPagesPerSite: Number(body.maxPagesPerSite ?? 10),
+      crawlStrategy:
+        body.crawlStrategy === "products-first" || body.crawlStrategy === "support-first"
+          ? body.crawlStrategy
+          : "balanced",
       brandName: (await getBrandProfile(workspaceId).catch(() => null))?.brandName
     });
     const successCount = results.filter((row) => row.ok).length;
