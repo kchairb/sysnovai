@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authEnabled, getAuthenticatedUserFromRequest } from "@/lib/server/auth";
 import { listBrandKnowledgeEntries } from "@/lib/server/brand-knowledge";
+import { recordCrawlRun } from "@/lib/server/crawl-history";
 import { hasDatabaseUrl } from "@/lib/server/db";
 import { ingestBrandUrls } from "@/lib/server/brand-ingest";
 import { getBrandProfile } from "@/lib/server/brand-profile";
@@ -113,6 +114,19 @@ export async function POST(request: Request) {
         productsUpdated: 0
       }
     );
+    await recordCrawlRun({
+      workspaceId,
+      strategyUsed,
+      requestedStrategy: body.crawlStrategy,
+      pagesCrawled: totals.pagesCrawled,
+      entriesCreated: totals.entriesCreated,
+      entriesUpdated: totals.entriesUpdated,
+      entriesSkipped: totals.entriesSkipped,
+      productsCreated: totals.productsCreated,
+      productsUpdated: totals.productsUpdated,
+      successCount,
+      failedCount: results.length - successCount
+    });
     return NextResponse.json({
       ok: true,
       workspaceId,

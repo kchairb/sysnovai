@@ -59,6 +59,22 @@ export default function KnowledgePage() {
       productsUpdated?: number;
     }>
   >([]);
+  const [crawlHistory, setCrawlHistory] = useState<
+    Array<{
+      id: string;
+      strategyUsed: string;
+      requestedStrategy?: string;
+      pagesCrawled: number;
+      entriesCreated: number;
+      entriesUpdated: number;
+      entriesSkipped: number;
+      productsCreated: number;
+      productsUpdated: number;
+      successCount: number;
+      failedCount: number;
+      createdAt: string;
+    }>
+  >([]);
   const [crawlSite, setCrawlSite] = useState(true);
   const [maxPagesPerSite, setMaxPagesPerSite] = useState(12);
   const [crawlStrategy, setCrawlStrategy] = useState<
@@ -126,6 +142,32 @@ export default function KnowledgePage() {
     }
   };
 
+  const loadCrawlHistory = async () => {
+    const response = await fetch(
+      `/api/brand-knowledge/ingest/history?workspaceId=${encodeURIComponent(workspaceId)}&limit=10`
+    );
+    if (!response.ok) {
+      return;
+    }
+    const payload = (await response.json().catch(() => ({}))) as {
+      runs?: Array<{
+        id: string;
+        strategyUsed: string;
+        requestedStrategy?: string;
+        pagesCrawled: number;
+        entriesCreated: number;
+        entriesUpdated: number;
+        entriesSkipped: number;
+        productsCreated: number;
+        productsUpdated: number;
+        successCount: number;
+        failedCount: number;
+        createdAt: string;
+      }>;
+    };
+    setCrawlHistory(payload.runs ?? []);
+  };
+
   useEffect(() => {
     const selected = getSelectedWorkspaceId();
     setWorkspaceId(selected);
@@ -140,6 +182,7 @@ export default function KnowledgePage() {
   useEffect(() => {
     void loadEntries();
     void loadBrandProfile();
+    void loadCrawlHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
@@ -229,6 +272,7 @@ export default function KnowledgePage() {
       }
       resetForm();
       await loadEntries();
+      await loadCrawlHistory();
     } finally {
       setSaving(false);
     }
@@ -708,6 +752,40 @@ export default function KnowledgePage() {
             </div>
           </div>
           {!!dedupeReport && <p className="mt-2 text-xs text-muted">{dedupeReport}</p>}
+        </article>
+        <article className="premium-panel p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-base font-medium">{tr("knowledge.crawlHistory", "Crawl history")}</h3>
+            <Badge variant="default">{tr("knowledge.lastRuns", "Last 10 runs")}</Badge>
+          </div>
+          <div className="mt-3 space-y-2">
+            {!crawlHistory.length && (
+              <p className="text-xs text-muted">
+                {tr("knowledge.noCrawlHistory", "No crawl runs yet. Start your first crawl to see history.")}
+              </p>
+            )}
+            {crawlHistory.map((run) => (
+              <article key={run.id} className="premium-subpanel p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                    {tr("knowledge.strategy", "Strategy")}: {run.strategyUsed}
+                    {run.requestedStrategy ? ` (${tr("knowledge.requested", "requested")}: ${run.requestedStrategy})` : ""}
+                  </p>
+                  <p className="text-xs text-muted">{new Date(run.createdAt).toLocaleString()}</p>
+                </div>
+                <p className="mt-1 text-xs text-secondary">
+                  {tr("knowledge.pagesCrawled", "Pages crawled")}: {run.pagesCrawled} | {tr("common.create", "Create")}
+                  : {run.entriesCreated} | {tr("common.update", "Update")}: {run.entriesUpdated} |{" "}
+                  {tr("knowledge.skipped", "Skipped")}: {run.entriesSkipped}
+                </p>
+                <p className="mt-1 text-xs text-secondary">
+                  {tr("products.addProduct", "Products")}: +{run.productsCreated}/~{run.productsUpdated} |{" "}
+                  {tr("knowledge.ingestSuccess", "Ingested")}: {run.successCount} |{" "}
+                  {tr("knowledge.ingestFailedCount", "Failed")}: {run.failedCount}
+                </p>
+              </article>
+            ))}
+          </div>
         </article>
         <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
           <article className="premium-panel p-4">

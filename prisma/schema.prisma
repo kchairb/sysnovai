@@ -36,6 +36,7 @@ model Workspace {
   brandProfile BrandProfile?
   brandKnowledge BrandKnowledgeEntry[]
   products     Product[]
+  crawlRuns    CrawlIngestRun[]
 }
 
 model WorkspaceMember {
@@ -241,4 +242,23 @@ model Product {
 
   @@index([workspaceId, updatedAt(sort: Desc)])
   @@index([workspaceId, isActive, updatedAt(sort: Desc)])
+}
+
+model CrawlIngestRun {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  strategyUsed     String
+  requestedStrategy String?
+  pagesCrawled     Int       @default(0)
+  entriesCreated   Int       @default(0)
+  entriesUpdated   Int       @default(0)
+  entriesSkipped   Int       @default(0)
+  productsCreated  Int       @default(0)
+  productsUpdated  Int       @default(0)
+  successCount     Int       @default(0)
+  failedCount      Int       @default(0)
+  createdAt        DateTime  @default(now())
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
 }
