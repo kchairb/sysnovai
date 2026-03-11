@@ -89,6 +89,7 @@ export default function KnowledgePage() {
   const [testReply, setTestReply] = useState("");
   const [testMeta, setTestMeta] = useState<{ provider?: string; model?: string } | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(false);
   const [profileReport, setProfileReport] = useState("");
   const [brandProfile, setBrandProfile] = useState<BrandProfile>({
     workspaceId: "workspace-default",
@@ -106,6 +107,16 @@ export default function KnowledgePage() {
     Array<{ id: string; role: "user" | "assistant"; content: string }>
   >([]);
   const [activeFlowStep, setActiveFlowStep] = useState<"setup" | "learn" | "test">("setup");
+  const [starterKit, setStarterKit] = useState({
+    contactPhone: "",
+    contactEmail: "",
+    whatsapp: "",
+    address: "",
+    shippingInfo: "",
+    returnPolicy: "",
+    paymentMethods: "",
+    keyProducts: ""
+  });
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -454,6 +465,72 @@ export default function KnowledgePage() {
     }
   };
 
+  const onCreateBrandStarterKit = async () => {
+    if (!brandProfile.brandName.trim()) {
+      setProfileReport(tr("knowledge.brandNameRequired", "Brand name is required."));
+      return;
+    }
+    setBootstrapping(true);
+    setProfileReport("");
+    try {
+      const response = await fetch("/api/brand-profile/bootstrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          brandName: brandProfile.brandName,
+          websiteUrl: brandProfile.websiteUrl,
+          instagram: brandProfile.instagram,
+          defaultMode: brandProfile.defaultMode,
+          context: brandProfile.context,
+          contactPhone: starterKit.contactPhone,
+          contactEmail: starterKit.contactEmail,
+          whatsapp: starterKit.whatsapp,
+          address: starterKit.address,
+          shippingInfo: starterKit.shippingInfo,
+          returnPolicy: starterKit.returnPolicy,
+          paymentMethods: starterKit.paymentMethods,
+          keyProducts: starterKit.keyProducts
+        })
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        stats?: {
+          knowledgeCreated?: number;
+          knowledgeUpdated?: number;
+          knowledgeSkipped?: number;
+          productsCreated?: number;
+          productsSkipped?: number;
+        };
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? tr("knowledge.bootstrapFailed", "Failed to create starter kit."));
+      }
+      await loadBrandProfile();
+      await loadEntries();
+      setTestPrompt(
+        `Present ${brandProfile.brandName} briefly and explain how clients can contact support and place an order.`
+      );
+      setActiveFlowStep("test");
+      setProfileReport(
+        `${tr("knowledge.bootstrapDone", "Starter kit created")}: ${tr("common.create", "Create")} ${
+          payload.stats?.knowledgeCreated ?? 0
+        } | ${tr("common.update", "Update")} ${payload.stats?.knowledgeUpdated ?? 0} | ${tr(
+          "products.addProduct",
+          "Products"
+        )} +${payload.stats?.productsCreated ?? 0}`
+      );
+    } catch (error) {
+      setProfileReport(
+        error instanceof Error
+          ? error.message
+          : tr("knowledge.bootstrapFailed", "Failed to create starter kit.")
+      );
+    } finally {
+      setBootstrapping(false);
+    }
+  };
+
   const onTestBrandAssistant = async () => {
     if (!testPrompt.trim()) return;
     setTesting(true);
@@ -676,6 +753,55 @@ export default function KnowledgePage() {
             "Brand context: products, tone, shipping, returns, payment, audience, contact style..."
           )}
         />
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Input
+            value={starterKit.contactPhone}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, contactPhone: event.target.value }))}
+            placeholder={tr("knowledge.contactPhone", "Contact phone")}
+          />
+          <Input
+            value={starterKit.contactEmail}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, contactEmail: event.target.value }))}
+            placeholder={tr("knowledge.contactEmail", "Contact email")}
+          />
+          <Input
+            value={starterKit.whatsapp}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, whatsapp: event.target.value }))}
+            placeholder={tr("knowledge.whatsapp", "WhatsApp")}
+          />
+          <Input
+            value={starterKit.address}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, address: event.target.value }))}
+            placeholder={tr("knowledge.address", "Address")}
+          />
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <Input
+            value={starterKit.shippingInfo}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, shippingInfo: event.target.value }))}
+            placeholder={tr("knowledge.shippingInfo", "Shipping info (e.g. 24-48h Tunisia)")}
+          />
+          <Input
+            value={starterKit.returnPolicy}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, returnPolicy: event.target.value }))}
+            placeholder={tr("knowledge.returnPolicy", "Return policy")}
+          />
+          <Input
+            value={starterKit.paymentMethods}
+            onChange={(event) => setStarterKit((prev) => ({ ...prev, paymentMethods: event.target.value }))}
+            placeholder={tr("knowledge.paymentMethods", "Payment methods")}
+            className="sm:col-span-2"
+          />
+        </div>
+        <Textarea
+          value={starterKit.keyProducts}
+          onChange={(event) => setStarterKit((prev) => ({ ...prev, keyProducts: event.target.value }))}
+          className="mt-2 min-h-[80px]"
+          placeholder={tr(
+            "knowledge.keyProducts",
+            "Key products (one per line). Starter kit will create product records automatically."
+          )}
+        />
         <div className="mt-2 flex gap-2">
           <Button size="sm" onClick={() => void onSaveBrandProfile()} disabled={profileSaving}>
             {profileSaving ? tr("common.saving", "Saving...") : tr("common.save", "Save")}
@@ -694,6 +820,11 @@ export default function KnowledgePage() {
         </div>
         {!!profileReport && <p className="mt-2 text-xs text-muted">{profileReport}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => void onCreateBrandStarterKit()} disabled={bootstrapping}>
+            {bootstrapping
+              ? tr("knowledge.creatingStarterKit", "Creating starter kit...")
+              : tr("knowledge.createStarterKit", "Create brand starter kit")}
+          </Button>
           <Button
             size="sm"
             variant="outline"
