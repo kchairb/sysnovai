@@ -62,8 +62,8 @@ export default function KnowledgePage() {
   const [crawlSite, setCrawlSite] = useState(true);
   const [maxPagesPerSite, setMaxPagesPerSite] = useState(12);
   const [crawlStrategy, setCrawlStrategy] = useState<
-    "balanced" | "products-first" | "support-first"
-  >("balanced");
+    "auto" | "balanced" | "products-first" | "support-first"
+  >("auto");
   const [testPrompt, setTestPrompt] = useState("");
   const [testLanguage, setTestLanguage] = useState<"darija" | "ar" | "fr" | "en">("fr");
   const [testMode, setTestMode] = useState<
@@ -296,6 +296,7 @@ export default function KnowledgePage() {
           productsCreated?: number;
           productsUpdated?: number;
         };
+        strategyUsed?: "balanced" | "products-first" | "support-first";
         results?: Array<{
           url: string;
           ok: boolean;
@@ -318,7 +319,9 @@ export default function KnowledgePage() {
         `${tr("knowledge.ingestSuccess", "Ingested")}: ${payload.successCount ?? 0} | ${tr(
           "knowledge.ingestFailedCount",
           "Failed"
-        )}: ${payload.failedCount ?? 0} | ${tr("knowledge.pagesCrawled", "Pages crawled")}: ${
+        )}: ${payload.failedCount ?? 0} | ${tr("knowledge.strategy", "Strategy")}: ${
+          payload.strategyUsed ?? crawlStrategy
+        } | ${tr("knowledge.pagesCrawled", "Pages crawled")}: ${
           payload.totals?.pagesCrawled ?? 0
         } | ${tr("common.create", "Create")}: ${payload.totals?.entriesCreated ?? 0} | ${tr(
           "common.update",
@@ -796,11 +799,12 @@ export default function KnowledgePage() {
                   value={crawlStrategy}
                   onChange={(event) =>
                     setCrawlStrategy(
-                      event.target.value as "balanced" | "products-first" | "support-first"
+                      event.target.value as "auto" | "balanced" | "products-first" | "support-first"
                     )
                   }
                   className="h-8 rounded-md border border-border/70 bg-elevated/30 px-2"
                 >
+                  <option value="auto">{tr("knowledge.crawlStrategyAuto", "Auto")}</option>
                   <option value="balanced">
                     {tr("knowledge.crawlStrategyBalanced", "Balanced")}
                   </option>

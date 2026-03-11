@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { authEnabled, getAuthenticatedUserFromRequest } from "@/lib/server/auth";
+import { listBrandKnowledgeEntries } from "@/lib/server/brand-knowledge";
 import { hasDatabaseUrl } from "@/lib/server/db";
 import { ingestBrandUrls } from "@/lib/server/brand-ingest";
 import { getBrandProfile } from "@/lib/server/brand-profile";
+import { listWorkspaceProducts } from "@/lib/server/product-store";
 import { ensureWorkspaceForRequest } from "@/lib/server/workspace-identity";
 
 type IngestBody = {
@@ -10,8 +12,42 @@ type IngestBody = {
   urls?: string[] | string;
   crawlSite?: boolean;
   maxPagesPerSite?: number;
-  crawlStrategy?: "balanced" | "products-first" | "support-first";
+  crawlStrategy?: "auto" | "balanced" | "products-first" | "support-first";
 };
+
+async function resolveCrawlStrategy(input: {
+  workspaceId: string;
+  requested?: IngestBody["crawlStrategy"];
+}) {
+  if (input.requested === "products-first" || input.requested === "support-first" || input.requested === "balanced") {
+    return input.requested;
+  }
+
+  const [knowledgeEntries, products] = await Promise.all([
+    listBrandKnowledgeEntries({
+      workspaceId: input.workspaceId,
+      includeInactive: false,
+      limit: 500
+    }).catch(() => []),
+    listWorkspaceProducts({
+      workspaceId: input.workspaceId,
+      includeInactive: false,
+      limit: 500
+    }).catch(() => [])
+  ]);
+
+  // Auto mode policy:
+  // 1) First crawl => support-first to capture contact/policy context.
+  // 2) Next passes => products-first until catalog fills up.
+  // 3) Then balanced for maintenance crawls.
+  if (!knowledgeEntries.length && !products.length) {
+    return "support-first" as const;
+  }
+  if (!products.length || products.length < 8) {
+    return "products-first" as const;
+  }
+  return "balanced" as const;
+}
 
 function parseUrls(input: IngestBody["urls"]) {
   if (Array.isArray(input)) {
@@ -44,15 +80,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "At least one URL is required." }, { status: 400 });
     }
 
+    const strategyUsed = await resolveCrawlStrategy({
+      workspaceId,
+      requested: body.crawlStrategy
+    });
+
     const results = await ingestBrandUrls({
       workspaceId,
       urls,
       crawlSite: Boolean(body.crawlSite),
       maxPagesPerSite: Number(body.maxPagesPerSite ?? 10),
-      crawlStrategy:
-        body.crawlStrategy === "products-first" || body.crawlStrategy === "support-first"
-          ? body.crawlStrategy
-          : "balanced",
+      crawlStrategy: strategyUsed,
       brandName: (await getBrandProfile(workspaceId).catch(() => null))?.brandName
     });
     const successCount = results.filter((row) => row.ok).length;
@@ -78,6 +116,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       workspaceId,
+      strategyUsed,
       successCount,
       failedCount: results.length - successCount,
       totals,
