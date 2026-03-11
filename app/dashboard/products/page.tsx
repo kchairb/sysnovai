@@ -317,7 +317,7 @@ export default function ProductsPage() {
       <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <article className="premium-panel p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-lg font-medium">{tr("products.catalog", "Catalog")}</h2>
+            <h2 className="premium-section-title">{tr("products.catalog", "Catalog")}</h2>
             <Badge>{tr("products.autoIngested", "Auto-filled by crawler")}</Badge>
           </div>
           <div className="mb-3 flex flex-wrap gap-2">
@@ -426,7 +426,7 @@ export default function ProductsPage() {
           </div>
         </article>
         <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("products.editPanel", "Edit product")}</h2>
+          <h2 className="premium-section-title">{tr("products.editPanel", "Edit product")}</h2>
           {!editingId && (
             <p className="mt-3 text-sm text-secondary">
               {tr("products.selectToEdit", "Select a product from the catalog to edit or delete.")}

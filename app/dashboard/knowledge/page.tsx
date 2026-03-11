@@ -1002,7 +1002,7 @@ export default function KnowledgePage() {
       <section className="premium-panel p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-medium">
+            <h2 className="premium-section-title">
               {tr("knowledge.workflowTitle", "Brand assistant workflow")}
             </h2>
             <p className="text-sm text-secondary">
@@ -1088,7 +1088,7 @@ export default function KnowledgePage() {
 
       {activeFlowStep === "setup" && (
         <section className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("knowledge.brandSetup", "Step 1: Brand setup")}</h2>
+          <h2 className="premium-section-title">{tr("knowledge.brandSetup", "Step 1: Brand setup")}</h2>
           <p className="mt-1 text-sm text-secondary">
             {tr(
               "knowledge.brandSetupDescription",
@@ -1376,7 +1376,7 @@ export default function KnowledgePage() {
         <article className="premium-panel p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-medium">{tr("knowledge.learningStatus", "Learning status")}</h2>
+              <h2 className="premium-section-title">{tr("knowledge.learningStatus", "Learning status")}</h2>
               <p className="mt-1 text-sm text-secondary">
                 {tr(
                   "knowledge.learningStatusDescription",
@@ -1446,7 +1446,7 @@ export default function KnowledgePage() {
         </div>
         <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
           <article className="premium-panel p-4">
-            <h2 className="text-lg font-medium">
+            <h2 className="premium-section-title">
               {editingId ? tr("knowledge.editEntry", "Edit entry") : tr("knowledge.newEntry", "New entry")}
             </h2>
             <div className="mt-3 space-y-2">
@@ -1581,7 +1581,7 @@ export default function KnowledgePage() {
 
           <article className="premium-panel p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-medium">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
+              <h2 className="premium-section-title">{tr("knowledge.itemsTitle", "Brand entries")}</h2>
               <div className="flex gap-2">
                 <Input
                   value={search}
@@ -1647,7 +1647,7 @@ export default function KnowledgePage() {
       {activeFlowStep === "test" && (
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
         <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">
+          <h2 className="premium-section-title">
             {tr("knowledge.brandChatTester", "Brand chat tester")}
           </h2>
           <p className="mt-1 text-sm text-secondary">

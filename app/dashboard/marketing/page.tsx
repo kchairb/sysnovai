@@ -50,7 +50,7 @@ export default function MarketingPage() {
 
       <section className="grid gap-4 xl:grid-cols-[360px_1fr]">
         <article className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("marketing.generationInput", "Generation Input")}</h2>
+          <h2 className="premium-section-title">{tr("marketing.generationInput", "Generation Input")}</h2>
           <form
             className="mt-4 space-y-4"
             onSubmit={(event) => {
@@ -106,7 +106,7 @@ export default function MarketingPage() {
 
         <article className="premium-panel p-4">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-medium">{tr("marketing.generatedOutputs", "Generated Outputs")}</h2>
+            <h2 className="premium-section-title">{tr("marketing.generatedOutputs", "Generated Outputs")}</h2>
             <div className="flex gap-2">
               <Button size="sm" variant="outline">
                 {tr("marketing.shorter", "Shorter")}

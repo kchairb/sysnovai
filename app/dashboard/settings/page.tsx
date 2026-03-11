@@ -250,7 +250,7 @@ export default function SettingsPage() {
           </article>
 
           <article id="profile" className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("settings.profileTitle", "Profile and Account")}</h2>
+          <h2 className="premium-section-title">{tr("settings.profileTitle", "Profile and Account")}</h2>
           <div className="mt-4 space-y-4">
             <Input placeholder={tr("settings.displayName", "Display name")} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
             <Input placeholder={tr("settings.role", "Role")} value={role} onChange={(e) => setRole(e.target.value)} />
@@ -290,7 +290,7 @@ export default function SettingsPage() {
           </article>
 
           <article id="workspace" className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("settings.workspaceTitle", "Workspace Profile")}</h2>
+          <h2 className="premium-section-title">{tr("settings.workspaceTitle", "Workspace Profile")}</h2>
           <div className="mt-4 space-y-4">
             <Input placeholder={tr("settings.workspaceName", "Workspace name")} value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} />
             <Input placeholder={tr("settings.industry", "Industry")} value={industry} onChange={(e) => setIndustry(e.target.value)} />
@@ -317,7 +317,7 @@ export default function SettingsPage() {
           </article>
 
           <article id="language" className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("settings.languageToneTitle", "Language and Tone Defaults")}</h2>
+          <h2 className="premium-section-title">{tr("settings.languageToneTitle", "Language and Tone Defaults")}</h2>
           <div className="mt-4 space-y-4">
             <Input value={defaultLanguage} onChange={(e) => setDefaultLanguage(e.target.value)} placeholder={tr("settings.defaultLanguage", "Default language")} />
             <Input value={secondaryLanguages} onChange={(e) => setSecondaryLanguages(e.target.value)} placeholder={tr("settings.secondaryLanguages", "Secondary languages")} />
@@ -353,7 +353,7 @@ export default function SettingsPage() {
           </article>
 
           <article id="security" className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("settings.securityTitle", "Authentication and Security")}</h2>
+          <h2 className="premium-section-title">{tr("settings.securityTitle", "Authentication and Security")}</h2>
           <div className="mt-4 space-y-4">
             <Input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder={tr("settings.loginEmail", "Login email")} />
 
@@ -486,7 +486,7 @@ export default function SettingsPage() {
           </article>
 
           <article id="billing" className="premium-panel p-4">
-          <h2 className="text-lg font-medium">{tr("settings.billingTitle", "Billing")}</h2>
+          <h2 className="premium-section-title">{tr("settings.billingTitle", "Billing")}</h2>
           <div className="mt-4 space-y-4">
             <Input value={billingPlan} onChange={(e) => setBillingPlan(e.target.value)} placeholder={tr("settings.plan", "Plan")} />
             <Input value={billingUsage} onChange={(e) => setBillingUsage(e.target.value)} placeholder={tr("settings.usage", "Usage")} />

@@ -26,7 +26,7 @@ export default async function DashboardHomePage() {
                 "Your premium AI workspace for support, sales, marketing, knowledge, and local Tunisian intelligence is active and ready."
               )}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="premium-action-row mt-4">
               <Button>
                 <Sparkles className="h-4 w-4" />
                 {t(locale, "dashboard.newConversation", "New AI Conversation")}
@@ -73,7 +73,7 @@ export default async function DashboardHomePage() {
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_350px]">
         <article className="premium-panel p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">{t(locale, "dashboard.recentActivity", "Recent activity")}</h2>
+            <h2 className="premium-section-title">{t(locale, "dashboard.recentActivity", "Recent activity")}</h2>
             <Button variant="ghost" size="sm">
               {t(locale, "dashboard.viewAll", "View all")}
               <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
@@ -89,7 +89,7 @@ export default async function DashboardHomePage() {
           </ul>
         </article>
         <article className="premium-panel p-5">
-          <h2 className="text-lg font-medium">{t(locale, "dashboard.quickActions", "Quick actions")}</h2>
+          <h2 className="premium-section-title">{t(locale, "dashboard.quickActions", "Quick actions")}</h2>
           <div className="mt-4 space-y-2">
             <Button variant="secondary" className="w-full justify-start">
               {t(locale, "dashboard.quickReplyDarija", "Generate customer reply in Darija")}
