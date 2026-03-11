@@ -1,4 +1,5 @@
 import { type Prisma } from "@prisma/client";
+import { createHash } from "node:crypto";
 import { getPrisma, hasDatabaseUrl } from "@/lib/server/db";
 import { ensurePersistentStorageConfigured } from "@/lib/server/storage-mode";
 
@@ -10,6 +11,7 @@ export type BrandKnowledgeEntryRecord = {
   category: BrandKnowledgeCategory;
   title: string;
   content: string;
+  sourceUrl?: string;
   tags: string[];
   isActive: boolean;
   createdAt: string;
@@ -45,6 +47,7 @@ function mapRow(
     category: string;
     title: string;
     content: string;
+    sourceUrl: string | null;
     tags: Prisma.JsonValue | null;
     isActive: boolean;
     createdAt: Date;
@@ -57,6 +60,7 @@ function mapRow(
     category: row.category as BrandKnowledgeCategory,
     title: row.title,
     content: row.content,
+    sourceUrl: row.sourceUrl ?? undefined,
     tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === "string") : [],
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
@@ -115,6 +119,8 @@ export async function createBrandKnowledgeEntry(input: {
   title: string;
   content: string;
   tags?: unknown;
+  sourceUrl?: string;
+  contentHash?: string;
 }) {
   const category = ensureCategory(input.category);
   const title = input.title.trim().slice(0, 160);
@@ -123,6 +129,11 @@ export async function createBrandKnowledgeEntry(input: {
     throw new Error("Title and content are required.");
   }
   const tags = normalizeTags(input.tags);
+
+  const sourceUrl = input.sourceUrl?.trim() || undefined;
+  const contentHash =
+    input.contentHash?.trim() ||
+    createHash("sha256").update(`${title}\n${content}`).digest("hex");
 
   if (hasDatabaseUrl()) {
     const prisma = getPrisma();
@@ -141,6 +152,8 @@ export async function createBrandKnowledgeEntry(input: {
         category,
         title,
         content,
+        sourceUrl,
+        contentHash,
         tags: tags as Prisma.InputJsonValue,
         isActive: true
       }
@@ -157,6 +170,7 @@ export async function createBrandKnowledgeEntry(input: {
     category,
     title,
     content,
+    sourceUrl,
     tags,
     isActive: true,
     createdAt: now,
@@ -165,6 +179,83 @@ export async function createBrandKnowledgeEntry(input: {
   store.unshift(entry);
   global.__sysnovaBrandKnowledge = store.slice(0, 5000);
   return entry;
+}
+
+export async function upsertIngestedBrandKnowledgeEntry(input: {
+  workspaceId: string;
+  category: string;
+  title: string;
+  content: string;
+  sourceUrl: string;
+  tags?: unknown;
+}) {
+  const category = ensureCategory(input.category);
+  const title = input.title.trim().slice(0, 160);
+  const content = input.content.trim().slice(0, 6000);
+  const sourceUrl = input.sourceUrl.trim();
+  const tags = normalizeTags(input.tags);
+  const contentHash = createHash("sha256").update(`${title}\n${content}`).digest("hex");
+
+  if (!title || !content || !sourceUrl) {
+    throw new Error("Title, content, and sourceUrl are required.");
+  }
+
+  if (hasDatabaseUrl()) {
+    const prisma = getPrisma();
+    const workspace = await prisma.workspace.upsert({
+      where: { externalId: input.workspaceId },
+      update: {},
+      create: {
+        externalId: input.workspaceId,
+        name: "Sysnova Workspace",
+        slug: `workspace-${input.workspaceId.replace(/[^a-zA-Z0-9]/g, "").slice(-10) || "main"}`
+      }
+    });
+    const existing = await prisma.brandKnowledgeEntry.findFirst({
+      where: { workspaceId: workspace.id, sourceUrl }
+    });
+    if (!existing) {
+      const created = await prisma.brandKnowledgeEntry.create({
+        data: {
+          workspaceId: workspace.id,
+          category,
+          title,
+          content,
+          sourceUrl,
+          contentHash,
+          tags: tags as Prisma.InputJsonValue,
+          isActive: true
+        }
+      });
+      return { entry: mapRow(created), action: "created" as const };
+    }
+    if (existing.contentHash === contentHash) {
+      return { entry: mapRow(existing), action: "unchanged" as const };
+    }
+    const updated = await prisma.brandKnowledgeEntry.update({
+      where: { id: existing.id },
+      data: {
+        category,
+        title,
+        content,
+        contentHash,
+        tags: tags as Prisma.InputJsonValue,
+        isActive: true
+      }
+    });
+    return { entry: mapRow(updated), action: "updated" as const };
+  }
+
+  const entry = await createBrandKnowledgeEntry({
+    workspaceId: input.workspaceId,
+    category,
+    title,
+    content,
+    sourceUrl,
+    contentHash,
+    tags
+  });
+  return { entry, action: "created" as const };
 }
 
 export async function updateBrandKnowledgeEntry(input: {

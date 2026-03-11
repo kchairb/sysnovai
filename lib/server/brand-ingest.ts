@@ -1,10 +1,15 @@
-import { createBrandKnowledgeEntry, type BrandKnowledgeCategory } from "@/lib/server/brand-knowledge";
+import {
+  type BrandKnowledgeCategory,
+  upsertIngestedBrandKnowledgeEntry
+} from "@/lib/server/brand-knowledge";
 
 type IngestResult = {
   url: string;
   ok: boolean;
   pagesCrawled?: number;
   entriesCreated?: number;
+  entriesUpdated?: number;
+  entriesSkipped?: number;
   entryId?: string;
   title?: string;
   category?: BrandKnowledgeCategory;
@@ -102,6 +107,27 @@ function extractInternalLinks(html: string, baseUrl: URL) {
   return [...links];
 }
 
+function normalizeCrawlUrl(url: URL) {
+  const next = new URL(url.toString());
+  next.hash = "";
+  const paramsToDelete = [
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "fbclid",
+    "gclid"
+  ];
+  for (const key of paramsToDelete) {
+    next.searchParams.delete(key);
+  }
+  if (next.pathname !== "/" && next.pathname.endsWith("/")) {
+    next.pathname = next.pathname.slice(0, -1);
+  }
+  return next.toString();
+}
+
 async function fetchHtml(url: string) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
@@ -143,9 +169,11 @@ export async function ingestBrandUrls(input: {
       }
 
       const visited = new Set<string>();
-      const queue: string[] = [parsed.toString()];
+      const queue: string[] = [normalizeCrawlUrl(parsed)];
       let pagesCrawled = 0;
       let entriesCreated = 0;
+      let entriesUpdated = 0;
+      let entriesSkipped = 0;
       let firstEntry:
         | { id: string; title: string; category: BrandKnowledgeCategory }
         | undefined;
@@ -178,23 +206,39 @@ export async function ingestBrandUrls(input: {
           .filter(Boolean)
           .join("\n\n");
 
-        const entry = await createBrandKnowledgeEntry({
+        const upserted = await upsertIngestedBrandKnowledgeEntry({
           workspaceId: input.workspaceId,
           category,
           title: pageTitle.slice(0, 160),
           content,
+          sourceUrl: normalizeCrawlUrl(currentParsed),
           tags: [currentParsed.hostname, category, "auto-ingest", "crawl", input.brandName || "brand"]
         });
-        entriesCreated += 1;
+        if (upserted.action === "created") {
+          entriesCreated += 1;
+        } else if (upserted.action === "updated") {
+          entriesUpdated += 1;
+        } else {
+          entriesSkipped += 1;
+        }
         if (!firstEntry) {
-          firstEntry = { id: entry.id, title: entry.title, category: entry.category };
+          firstEntry = {
+            id: upserted.entry.id,
+            title: upserted.entry.title,
+            category: upserted.entry.category
+          };
         }
 
         if (input.crawlSite) {
           const internalLinks = extractInternalLinks(html, currentParsed);
           for (const link of internalLinks) {
-            if (!visited.has(link) && !queue.includes(link) && queue.length < maxPagesPerSite * 3) {
-              queue.push(link);
+            const normalizedLink = normalizeCrawlUrl(new URL(link));
+            if (
+              !visited.has(normalizedLink) &&
+              !queue.includes(normalizedLink) &&
+              queue.length < maxPagesPerSite * 3
+            ) {
+              queue.push(normalizedLink);
             }
           }
         }
@@ -205,6 +249,8 @@ export async function ingestBrandUrls(input: {
         ok: true,
         pagesCrawled,
         entriesCreated,
+        entriesUpdated,
+        entriesSkipped,
         entryId: firstEntry?.id,
         title: firstEntry?.title,
         category: firstEntry?.category

@@ -179,6 +179,8 @@ model BrandKnowledgeEntry {
   category    String
   title       String
   content     String
+  sourceUrl   String?
+  contentHash String?
   tags        Json?
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())

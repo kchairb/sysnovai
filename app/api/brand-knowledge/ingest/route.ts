@@ -51,11 +51,22 @@ export async function POST(request: Request) {
       brandName: (await getBrandProfile(workspaceId).catch(() => null))?.brandName
     });
     const successCount = results.filter((row) => row.ok).length;
+    const totals = results.reduce(
+      (sum, row) => {
+        sum.pagesCrawled += row.pagesCrawled ?? 0;
+        sum.entriesCreated += row.entriesCreated ?? 0;
+        sum.entriesUpdated += row.entriesUpdated ?? 0;
+        sum.entriesSkipped += row.entriesSkipped ?? 0;
+        return sum;
+      },
+      { pagesCrawled: 0, entriesCreated: 0, entriesUpdated: 0, entriesSkipped: 0 }
+    );
     return NextResponse.json({
       ok: true,
       workspaceId,
       successCount,
       failedCount: results.length - successCount,
+      totals,
       results
     });
   } catch (error) {

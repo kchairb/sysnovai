@@ -44,6 +44,17 @@ export default function KnowledgePage() {
   const [ingestUrls, setIngestUrls] = useState("");
   const [ingesting, setIngesting] = useState(false);
   const [ingestReport, setIngestReport] = useState<string>("");
+  const [ingestDetails, setIngestDetails] = useState<
+    Array<{
+      url: string;
+      ok: boolean;
+      error?: string;
+      pagesCrawled?: number;
+      entriesCreated?: number;
+      entriesUpdated?: number;
+      entriesSkipped?: number;
+    }>
+  >([]);
   const [crawlSite, setCrawlSite] = useState(true);
   const [maxPagesPerSite, setMaxPagesPerSite] = useState(12);
   const [testPrompt, setTestPrompt] = useState("");
@@ -237,6 +248,7 @@ export default function KnowledgePage() {
     if (!sourceUrls) return;
     setIngesting(true);
     setIngestReport("");
+    setIngestDetails([]);
     try {
       const response = await fetch("/api/brand-knowledge/ingest", {
         method: "POST",
@@ -251,12 +263,20 @@ export default function KnowledgePage() {
       const payload = (await response.json()) as {
         successCount?: number;
         failedCount?: number;
+        totals?: {
+          pagesCrawled?: number;
+          entriesCreated?: number;
+          entriesUpdated?: number;
+          entriesSkipped?: number;
+        };
         results?: Array<{
           url: string;
           ok: boolean;
           error?: string;
           pagesCrawled?: number;
           entriesCreated?: number;
+          entriesUpdated?: number;
+          entriesSkipped?: number;
         }>;
         error?: string;
       };
@@ -264,17 +284,19 @@ export default function KnowledgePage() {
         throw new Error(payload.error ?? tr("knowledge.ingestFailed", "Link ingestion failed"));
       }
       const failed = (payload.results ?? []).filter((item) => !item.ok);
-      const crawledPages = (payload.results ?? []).reduce(
-        (sum, item) => sum + (item.pagesCrawled ?? 0),
-        0
-      );
+      setIngestDetails(payload.results ?? []);
       setIngestReport(
         `${tr("knowledge.ingestSuccess", "Ingested")}: ${payload.successCount ?? 0} | ${tr(
           "knowledge.ingestFailedCount",
           "Failed"
-        )}: ${payload.failedCount ?? 0} | ${tr("knowledge.pagesCrawled", "Pages crawled")}: ${crawledPages}${
-          failed.length ? ` | ${failed[0].url}: ${failed[0].error ?? "error"}` : ""
-        }`
+        )}: ${payload.failedCount ?? 0} | ${tr("knowledge.pagesCrawled", "Pages crawled")}: ${
+          payload.totals?.pagesCrawled ?? 0
+        } | ${tr("common.create", "Create")}: ${payload.totals?.entriesCreated ?? 0} | ${tr(
+          "common.update",
+          "Update"
+        )}: ${payload.totals?.entriesUpdated ?? 0} | ${tr("knowledge.skipped", "Skipped")}: ${
+          payload.totals?.entriesSkipped ?? 0
+        }${failed.length ? ` | ${failed[0].url}: ${failed[0].error ?? "error"}` : ""}`
       );
       await loadEntries();
     } catch (error) {
@@ -839,6 +861,17 @@ export default function KnowledgePage() {
               </Button>
               {!!ingestReport && <p className="text-xs text-muted">{ingestReport}</p>}
             </div>
+            {!!ingestDetails.length && (
+              <div className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/70 bg-elevated/15 p-2">
+                {ingestDetails.map((item) => (
+                  <p key={`${item.url}-${item.ok ? "ok" : "err"}`} className="text-xs text-secondary">
+                    {item.ok
+                      ? `${item.url} -> pages:${item.pagesCrawled ?? 0}, +${item.entriesCreated ?? 0}, ~${item.entriesUpdated ?? 0}, =${item.entriesSkipped ?? 0}`
+                      : `${item.url} -> ${item.error ?? "failed"}`}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         </article>
 
