@@ -132,6 +132,7 @@ export default function KnowledgePage() {
   const [quickWebsiteUrl, setQuickWebsiteUrl] = useState("");
   const [quickBrandName, setQuickBrandName] = useState("");
   const [quickSettingUp, setQuickSettingUp] = useState(false);
+  const [showAdvancedSetup, setShowAdvancedSetup] = useState(false);
   const [form, setForm] = useState({
     category: "brand" as BrandKnowledgeEntry["category"],
     title: "",
@@ -1132,202 +1133,213 @@ export default function KnowledgePage() {
             </Button>
           </div>
         </div>
-        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">
-          {tr("knowledge.profileRefinement", "Brand profile refinement (optional)")}
-        </p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-          <select
-            value={brandId}
-            onChange={(event) => {
-              setBrandId(event.target.value);
-              setSelectedBrandId(event.target.value);
-            }}
-            className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
-          >
-            {brands.map((brand) => (
-              <option key={brand.brandId} value={brand.brandId}>
-                {brand.brandName}
-              </option>
-            ))}
-          </select>
-          <Input
-            value={brandNameDraft}
-            onChange={(event) => setBrandNameDraft(event.target.value)}
-            placeholder={tr("knowledge.newBrand", "New brand name")}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              if (!brandNameDraft.trim()) return;
-              const response = await fetch("/api/brands", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ workspaceId, brandName: brandNameDraft.trim() })
-              });
-              const payload = (await response.json().catch(() => ({}))) as {
-                brand?: { brandId: string; brandName: string };
-                error?: string;
-              };
-              if (!response.ok || !payload.brand) {
-                setProfileReport(payload.error ?? tr("knowledge.createBrandFailed", "Failed to create brand."));
-                return;
-              }
-              setBrandNameDraft("");
-              await loadBrands();
-              setBrandId(payload.brand.brandId);
-              setSelectedBrandId(payload.brand.brandId);
-            }}
-          >
-            {tr("knowledge.createBrand", "Create brand")}
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            {tr("knowledge.profileRefinement", "Brand profile refinement (optional)")}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setShowAdvancedSetup((prev) => !prev)}>
+            {showAdvancedSetup
+              ? tr("knowledge.hideAdvancedSetup", "Hide advanced")
+              : tr("knowledge.showAdvancedSetup", "Show advanced")}
           </Button>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Input
-            value={brandProfile.brandName}
-            onChange={(event) => setBrandProfile((prev) => ({ ...prev, brandName: event.target.value }))}
-            placeholder={tr("knowledge.brandName", "Brand name")}
-          />
-          <Input
-            value={brandProfile.websiteUrl}
-            onChange={(event) => setBrandProfile((prev) => ({ ...prev, websiteUrl: event.target.value }))}
-            placeholder={tr("knowledge.websiteUrl", "Website URL")}
-          />
-          <Input
-            value={brandProfile.instagram}
-            onChange={(event) => setBrandProfile((prev) => ({ ...prev, instagram: event.target.value }))}
-            placeholder={tr("knowledge.instagram", "Instagram handle/link")}
-          />
-          <select
-            value={brandProfile.defaultMode}
-            onChange={(event) =>
-              setBrandProfile((prev) => ({
-                ...prev,
-                defaultMode: event.target.value as BrandProfile["defaultMode"]
-              }))
-            }
-            className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
-          >
-            <option value="general">General Assistant</option>
-            <option value="support">Support Assistant</option>
-            <option value="sales">Sales Assistant</option>
-            <option value="marketing">Marketing Assistant</option>
-            <option value="tunisian-assistant">Tunisian Assistant</option>
-          </select>
-        </div>
-        <Textarea
-          value={brandProfile.context}
-          onChange={(event) => setBrandProfile((prev) => ({ ...prev, context: event.target.value }))}
-          className="mt-2 min-h-[110px]"
-          placeholder={tr(
-            "knowledge.brandContext",
-            "Brand context: products, tone, shipping, returns, payment, audience, contact style..."
-          )}
-        />
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Input
-            value={starterKit.contactPhone}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, contactPhone: event.target.value }))}
-            placeholder={tr("knowledge.contactPhone", "Contact phone")}
-          />
-          <Input
-            value={starterKit.contactEmail}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, contactEmail: event.target.value }))}
-            placeholder={tr("knowledge.contactEmail", "Contact email")}
-          />
-          <Input
-            value={starterKit.whatsapp}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, whatsapp: event.target.value }))}
-            placeholder={tr("knowledge.whatsapp", "WhatsApp")}
-          />
-          <Input
-            value={starterKit.address}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, address: event.target.value }))}
-            placeholder={tr("knowledge.address", "Address")}
-          />
-        </div>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <Input
-            value={starterKit.shippingInfo}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, shippingInfo: event.target.value }))}
-            placeholder={tr("knowledge.shippingInfo", "Shipping info (e.g. 24-48h Tunisia)")}
-          />
-          <Input
-            value={starterKit.returnPolicy}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, returnPolicy: event.target.value }))}
-            placeholder={tr("knowledge.returnPolicy", "Return policy")}
-          />
-          <Input
-            value={starterKit.paymentMethods}
-            onChange={(event) => setStarterKit((prev) => ({ ...prev, paymentMethods: event.target.value }))}
-            placeholder={tr("knowledge.paymentMethods", "Payment methods")}
-            className="sm:col-span-2"
-          />
-        </div>
-        <Textarea
-          value={starterKit.keyProducts}
-          onChange={(event) => setStarterKit((prev) => ({ ...prev, keyProducts: event.target.value }))}
-          className="mt-2 min-h-[80px]"
-          placeholder={tr(
-            "knowledge.keyProducts",
-            "Key products (one per line). Starter kit will create product records automatically."
-          )}
-        />
-        <div className="mt-2 flex gap-2">
-          <Button size="sm" onClick={() => void onSaveBrandProfile()} disabled={profileSaving}>
-            {profileSaving ? tr("common.saving", "Saving...") : tr("common.save", "Save")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => void onAutofillFromWebsite()} disabled={autofilling}>
-            {autofilling
-              ? tr("knowledge.autofilling", "Fetching website data...")
-              : tr("knowledge.autofillFromWebsite", "Auto-fill from website")}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (brandProfile.websiteUrl.trim()) {
-                setIngestUrls(brandProfile.websiteUrl.trim());
-              }
-            }}
-          >
-            {tr("knowledge.useWebsiteForCrawl", "Use website URL in crawler")}
-          </Button>
-        </div>
+        {showAdvancedSetup && (
+          <>
+            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <select
+                value={brandId}
+                onChange={(event) => {
+                  setBrandId(event.target.value);
+                  setSelectedBrandId(event.target.value);
+                }}
+                className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
+              >
+                {brands.map((brand) => (
+                  <option key={brand.brandId} value={brand.brandId}>
+                    {brand.brandName}
+                  </option>
+                ))}
+              </select>
+              <Input
+                value={brandNameDraft}
+                onChange={(event) => setBrandNameDraft(event.target.value)}
+                placeholder={tr("knowledge.newBrand", "New brand name")}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  if (!brandNameDraft.trim()) return;
+                  const response = await fetch("/api/brands", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ workspaceId, brandName: brandNameDraft.trim() })
+                  });
+                  const payload = (await response.json().catch(() => ({}))) as {
+                    brand?: { brandId: string; brandName: string };
+                    error?: string;
+                  };
+                  if (!response.ok || !payload.brand) {
+                    setProfileReport(payload.error ?? tr("knowledge.createBrandFailed", "Failed to create brand."));
+                    return;
+                  }
+                  setBrandNameDraft("");
+                  await loadBrands();
+                  setBrandId(payload.brand.brandId);
+                  setSelectedBrandId(payload.brand.brandId);
+                }}
+              >
+                {tr("knowledge.createBrand", "Create brand")}
+              </Button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Input
+                value={brandProfile.brandName}
+                onChange={(event) => setBrandProfile((prev) => ({ ...prev, brandName: event.target.value }))}
+                placeholder={tr("knowledge.brandName", "Brand name")}
+              />
+              <Input
+                value={brandProfile.websiteUrl}
+                onChange={(event) => setBrandProfile((prev) => ({ ...prev, websiteUrl: event.target.value }))}
+                placeholder={tr("knowledge.websiteUrl", "Website URL")}
+              />
+              <Input
+                value={brandProfile.instagram}
+                onChange={(event) => setBrandProfile((prev) => ({ ...prev, instagram: event.target.value }))}
+                placeholder={tr("knowledge.instagram", "Instagram handle/link")}
+              />
+              <select
+                value={brandProfile.defaultMode}
+                onChange={(event) =>
+                  setBrandProfile((prev) => ({
+                    ...prev,
+                    defaultMode: event.target.value as BrandProfile["defaultMode"]
+                  }))
+                }
+                className="h-10 rounded-md border border-border/70 bg-elevated/30 px-3 text-sm"
+              >
+                <option value="general">General Assistant</option>
+                <option value="support">Support Assistant</option>
+                <option value="sales">Sales Assistant</option>
+                <option value="marketing">Marketing Assistant</option>
+                <option value="tunisian-assistant">Tunisian Assistant</option>
+              </select>
+            </div>
+            <Textarea
+              value={brandProfile.context}
+              onChange={(event) => setBrandProfile((prev) => ({ ...prev, context: event.target.value }))}
+              className="mt-2 min-h-[110px]"
+              placeholder={tr(
+                "knowledge.brandContext",
+                "Brand context: products, tone, shipping, returns, payment, audience, contact style..."
+              )}
+            />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Input
+                value={starterKit.contactPhone}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, contactPhone: event.target.value }))}
+                placeholder={tr("knowledge.contactPhone", "Contact phone")}
+              />
+              <Input
+                value={starterKit.contactEmail}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, contactEmail: event.target.value }))}
+                placeholder={tr("knowledge.contactEmail", "Contact email")}
+              />
+              <Input
+                value={starterKit.whatsapp}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, whatsapp: event.target.value }))}
+                placeholder={tr("knowledge.whatsapp", "WhatsApp")}
+              />
+              <Input
+                value={starterKit.address}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, address: event.target.value }))}
+                placeholder={tr("knowledge.address", "Address")}
+              />
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <Input
+                value={starterKit.shippingInfo}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, shippingInfo: event.target.value }))}
+                placeholder={tr("knowledge.shippingInfo", "Shipping info (e.g. 24-48h Tunisia)")}
+              />
+              <Input
+                value={starterKit.returnPolicy}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, returnPolicy: event.target.value }))}
+                placeholder={tr("knowledge.returnPolicy", "Return policy")}
+              />
+              <Input
+                value={starterKit.paymentMethods}
+                onChange={(event) => setStarterKit((prev) => ({ ...prev, paymentMethods: event.target.value }))}
+                placeholder={tr("knowledge.paymentMethods", "Payment methods")}
+                className="sm:col-span-2"
+              />
+            </div>
+            <Textarea
+              value={starterKit.keyProducts}
+              onChange={(event) => setStarterKit((prev) => ({ ...prev, keyProducts: event.target.value }))}
+              className="mt-2 min-h-[80px]"
+              placeholder={tr(
+                "knowledge.keyProducts",
+                "Key products (one per line). Starter kit will create product records automatically."
+              )}
+            />
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" onClick={() => void onSaveBrandProfile()} disabled={profileSaving}>
+                {profileSaving ? tr("common.saving", "Saving...") : tr("common.save", "Save")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void onAutofillFromWebsite()} disabled={autofilling}>
+                {autofilling
+                  ? tr("knowledge.autofilling", "Fetching website data...")
+                  : tr("knowledge.autofillFromWebsite", "Auto-fill from website")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (brandProfile.websiteUrl.trim()) {
+                    setIngestUrls(brandProfile.websiteUrl.trim());
+                  }
+                }}
+              >
+                {tr("knowledge.useWebsiteForCrawl", "Use website URL in crawler")}
+              </Button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() => void onAutofillAndCreateStarterKit()}
+                disabled={autofillAndBootstrapping}
+              >
+                {autofillAndBootstrapping
+                  ? tr("knowledge.autofillingAndCreating", "Auto-filling + creating...")
+                  : tr("knowledge.autofillAndCreateStarterKit", "Auto-fill + create starter kit")}
+              </Button>
+              <Button size="sm" onClick={() => void onCreateBrandStarterKit()} disabled={bootstrapping}>
+                {bootstrapping
+                  ? tr("knowledge.creatingStarterKit", "Creating starter kit...")
+                  : tr("knowledge.createStarterKit", "Create brand starter kit")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setBrandProfile((prev) => ({
+                    ...prev,
+                    context:
+                      prev.context ||
+                      "Tone: premium and reassuring. Delivery: Tunisia-wide 24-72h. Returns: accepted within 7 days for eligible items. Payments: cash on delivery and card."
+                  }))
+                }
+              >
+                {tr("knowledge.fillContextTemplate", "Fill context template")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("learn")}>
+                {tr("knowledge.nextLearn", "Next: Crawl and learn")}
+              </Button>
+            </div>
+          </>
+        )}
         {!!profileReport && <p className="mt-2 text-xs text-muted">{profileReport}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            onClick={() => void onAutofillAndCreateStarterKit()}
-            disabled={autofillAndBootstrapping}
-          >
-            {autofillAndBootstrapping
-              ? tr("knowledge.autofillingAndCreating", "Auto-filling + creating...")
-              : tr("knowledge.autofillAndCreateStarterKit", "Auto-fill + create starter kit")}
-          </Button>
-          <Button size="sm" onClick={() => void onCreateBrandStarterKit()} disabled={bootstrapping}>
-            {bootstrapping
-              ? tr("knowledge.creatingStarterKit", "Creating starter kit...")
-              : tr("knowledge.createStarterKit", "Create brand starter kit")}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              setBrandProfile((prev) => ({
-                ...prev,
-                context:
-                  prev.context ||
-                  "Tone: premium and reassuring. Delivery: Tunisia-wide 24-72h. Returns: accepted within 7 days for eligible items. Payments: cash on delivery and card."
-              }))
-            }
-          >
-            {tr("knowledge.fillContextTemplate", "Fill context template")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setActiveFlowStep("learn")}>
-            {tr("knowledge.nextLearn", "Next: Crawl and learn")}
-          </Button>
-        </div>
       </section>
       )}
 
