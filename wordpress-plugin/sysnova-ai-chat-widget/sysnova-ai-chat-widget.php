@@ -56,6 +56,8 @@ class SysnovaAiChatWidget
             'toggle_text' => sanitize_text_field($input['toggle_text'] ?? 'Ask us'),
             'auto_open' => !empty($input['auto_open']) ? 1 : 0,
             'streaming' => !empty($input['streaming']) ? 1 : 0,
+            'assistant_mode' => sanitize_text_field($input['assistant_mode'] ?? 'support'),
+            'brand_context' => sanitize_textarea_field($input['brand_context'] ?? ''),
             'enable_lead_capture' => !empty($input['enable_lead_capture']) ? 1 : 0,
             'lead_required' => !empty($input['lead_required']) ? 1 : 0,
         ];
@@ -103,6 +105,8 @@ class SysnovaAiChatWidget
             'toggleText' => $settings['toggle_text'] ?? 'Ask us',
             'autoOpen' => !empty($settings['auto_open']),
             'streaming' => !empty($settings['streaming']),
+            'assistantMode' => $settings['assistant_mode'] ?? 'support',
+            'brandContext' => $settings['brand_context'] ?? '',
             'enableLeadCapture' => !empty($settings['enable_lead_capture']),
             'leadRequired' => !empty($settings['lead_required']),
         ];
@@ -190,6 +194,29 @@ class SysnovaAiChatWidget
                         <th scope="row">Enable Streaming</th>
                         <td>
                             <input type="checkbox" name="<?php echo esc_attr(self::OPTION_KEY); ?>[streaming]" value="1" <?php checked(($settings['streaming'] ?? 1), 1); ?> />
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Assistant Mode</th>
+                        <td>
+                            <select name="<?php echo esc_attr(self::OPTION_KEY); ?>[assistant_mode]">
+                                <option value="general" <?php selected(($settings['assistant_mode'] ?? 'support'), 'general'); ?>>General</option>
+                                <option value="support" <?php selected(($settings['assistant_mode'] ?? 'support'), 'support'); ?>>Support</option>
+                                <option value="sales" <?php selected(($settings['assistant_mode'] ?? 'support'), 'sales'); ?>>Sales</option>
+                                <option value="marketing" <?php selected(($settings['assistant_mode'] ?? 'support'), 'marketing'); ?>>Marketing</option>
+                                <option value="tunisian-assistant" <?php selected(($settings['assistant_mode'] ?? 'support'), 'tunisian-assistant'); ?>>Tunisian Assistant</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Brand Context</th>
+                        <td>
+                            <textarea
+                                class="large-text"
+                                rows="5"
+                                name="<?php echo esc_attr(self::OPTION_KEY); ?>[brand_context]"
+                            ><?php echo esc_textarea($settings['brand_context'] ?? ''); ?></textarea>
+                            <p class="description">Write key brand information (products, tone, shipping policy, contact links, Instagram handle, etc.).</p>
                         </td>
                     </tr>
                     <tr>

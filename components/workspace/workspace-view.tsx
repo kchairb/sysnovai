@@ -59,10 +59,10 @@ type ProviderBadge = {
 };
 
 const modes: Array<{ label: string; value: WorkspaceMode }> = [
-  { label: "General", value: "general" },
-  { label: "Support", value: "support" },
-  { label: "Sales", value: "sales" },
-  { label: "Marketing", value: "marketing" },
+  { label: "General Assistant", value: "general" },
+  { label: "Support Assistant", value: "support" },
+  { label: "Sales Assistant", value: "sales" },
+  { label: "Marketing Assistant", value: "marketing" },
   { label: "Tunisian Assistant", value: "tunisian-assistant" }
 ];
 
@@ -756,16 +756,9 @@ export function WorkspaceView() {
                 size="sm"
                 onClick={() => setSelectedMode(mode.value)}
                 className="h-8 px-3 text-xs"
+                title={mode.label}
               >
-                {mode.value === "general"
-                  ? tr("workspace.mode.general", "General")
-                  : mode.value === "support"
-                    ? tr("workspace.mode.support", "Support")
-                    : mode.value === "sales"
-                      ? tr("workspace.mode.sales", "Sales")
-                      : mode.value === "marketing"
-                        ? tr("workspace.mode.marketing", "Marketing")
-                        : tr("workspace.mode.tunisianAssistant", "Tunisian Assistant")}
+                {mode.label}
               </Button>
             ))}
           </div>

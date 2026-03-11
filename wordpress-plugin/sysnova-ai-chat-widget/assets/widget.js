@@ -25,6 +25,8 @@
     primaryColor: cfg.primaryColor || "#22c7d6",
     autoOpen: Boolean(cfg.autoOpen),
     streaming: cfg.streaming !== false,
+    assistantMode: cfg.assistantMode || "support",
+    brandContext: cfg.brandContext || "",
     enableLeadCapture: Boolean(cfg.enableLeadCapture),
     leadRequired: Boolean(cfg.leadRequired),
     leadTitle: cfg.leadTitle || "Before we start",
@@ -189,6 +191,8 @@
         body: JSON.stringify({
           domain: config.domain,
           language: config.language,
+          assistantMode: config.assistantMode,
+          brandContext: config.brandContext,
           prompt: prompt,
           lead: leadData || undefined
         })
@@ -252,6 +256,8 @@
         body: JSON.stringify({
           domain: config.domain,
           language: config.language,
+          assistantMode: config.assistantMode,
+          brandContext: config.brandContext,
           prompt: prompt,
           lead: leadData || undefined
         })

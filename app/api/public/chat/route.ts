@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { runRagPipeline } from "@/lib/ai/orchestrator";
-import { type SysnovaLanguage } from "@/lib/ai/types";
+import { type SysnovaLanguage, type SysnovaMode } from "@/lib/ai/types";
 import { appendPublicChatLog } from "@/lib/server/public-chat-log-store";
 import {
   findWebsiteAssistantByDomain,
@@ -10,12 +10,21 @@ import {
 type Body = {
   prompt?: string;
   language?: SysnovaLanguage;
+  assistantMode?: SysnovaMode;
+  brandContext?: string;
   domain?: string;
   lead?: {
     name?: string;
     phone?: string;
   };
 };
+
+function parseMode(value: unknown): SysnovaMode {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return ["general", "support", "sales", "marketing", "tunisian-assistant"].includes(normalized)
+    ? (normalized as SysnovaMode)
+    : "support";
+}
 
 function corsHeaders(origin: string | null) {
   return {
@@ -69,11 +78,16 @@ export async function POST(request: Request) {
   }
 
   const language = body.language ?? assistant.defaultLanguage;
+  const assistantMode = parseMode(body.assistantMode);
+  const brandContext = (body.brandContext ?? "").trim().slice(0, 2000);
+  const promptWithBrandContext = brandContext
+    ? `Brand context:\n${brandContext}\n\nUser message:\n${prompt}`
+    : prompt;
   const result = await runRagPipeline({
     workspaceId: assistant.workspaceId,
-    message: prompt,
+    message: promptWithBrandContext,
     language,
-    mode: "support"
+    mode: assistantMode
   });
 
   await appendPublicChatLog({
@@ -97,6 +111,7 @@ export async function POST(request: Request) {
       assistant: assistant.name,
       meta: {
         language,
+        mode: assistantMode,
         provider: result.provider,
         model: result.model
       }
